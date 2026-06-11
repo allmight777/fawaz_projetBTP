@@ -1,7 +1,7 @@
 FROM php:8.2-fpm-alpine
 
-RUN apk add --no-cache nginx supervisor curl zip unzip git \
-    && docker-php-ext-install pdo pdo_mysql opcache
+RUN apk add --no-cache nginx supervisor curl zip unzip git libpq-dev \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql opcache
 
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
