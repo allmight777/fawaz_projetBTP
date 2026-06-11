@@ -23,8 +23,8 @@ return new class extends Migration
             $table->integer('version_number')->default(1);
             $table->foreignId('document_id')->nullable()->constrained('documents')->onDelete('set null');
             $table->string('fichier_url')->nullable();
-            $table->string('fichier_chemin')->nullable(); // Pour stocker le chemin du fichier uploadé
-            $table->string('fichier_nom')->nullable();    // Nom original du fichier
+            $table->string('fichier_chemin')->nullable();
+            $table->string('fichier_nom')->nullable();
             $table->enum('statut', ['EN ATTENTE', 'EN CONTROLE', 'VALIDE', 'REJETE', 'ARCHIVE'])->default('EN ATTENTE');
             $table->foreignId('controleur_id')->nullable()->constrained('users')->onDelete('set null');
             $table->enum('priorite', ['Basse', 'Moyenne', 'Haute', 'Urgente'])->default('Moyenne');
@@ -47,16 +47,27 @@ return new class extends Migration
         });
 
         DB::statement('
+            CREATE OR REPLACE FUNCTION update_derniere_maj()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.derniere_maj = NOW();
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        ');
+
+        DB::statement('
             CREATE TRIGGER update_demandes_derniere_maj
             BEFORE UPDATE ON demandes
             FOR EACH ROW
-            SET NEW.derniere_maj = NOW()
+            EXECUTE FUNCTION update_derniere_maj();
         ');
     }
 
     public function down(): void
     {
-        DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj');
+        DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj ON demandes');
+        DB::statement('DROP FUNCTION IF EXISTS update_derniere_maj');
         Schema::dropIfExists('demandes');
     }
 };
