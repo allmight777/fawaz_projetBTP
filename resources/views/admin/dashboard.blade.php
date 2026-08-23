@@ -406,10 +406,10 @@
             new Chart(statusCtx.getContext('2d'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Actifs', 'Inactifs'],
+                    labels: ['Actifs', 'Inactifs', 'Désactivés', 'En attente'],
                     datasets: [{
                         data: statusData,
-                        backgroundColor: ['#34d399', '#ef4444'],
+                        backgroundColor: ['#34d399', '#f59e0b', '#ef4444', '#9ca3af'],
                         borderWidth: 0
                     }]
                 },

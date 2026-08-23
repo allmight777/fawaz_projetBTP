@@ -10,127 +10,16 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
         <link rel="shortcut icon" href="{{ asset('images/login.jpg') }}" type="image/x-icon">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f0fdf4;
-            overflow-x: hidden;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 280px;
-            height: 100%;
-            background: linear-gradient(180deg, #064e3b 0%, #047857 100%);
-            z-index: 100;
-            transition: all 0.3s ease;
-            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-header {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 45px;
-            height: 45px;
-            background: white;
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: #047857;
-        }
-
-        .logo-text h2 { color: white; font-size: 20px; font-weight: 700; }
-        .logo-text p { color: #86efac; font-size: 11px; font-weight: 500; }
-
-        .nav-menu { padding: 0 15px; }
-        .nav-item { list-style: none; margin-bottom: 8px; }
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 15px;
-            color: #bbf7d0;
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-        .nav-link i { width: 22px; font-size: 18px; }
-        .nav-link:hover { background: rgba(255,255,255,0.1); color: white; }
-        .nav-link.active { background: white; color: #047857; box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .nav-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 15px 0; }
-
-        /* Main Content */
-        .main-content { margin-left: 280px; transition: all 0.3s ease; }
-
-        /* Top Bar */
-        .top-bar {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 99;
-        }
-        .page-title { font-size: 24px; font-weight: 700; color: #064e3b; }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 15px;
-            background: #f0fdf4;
-            border-radius: 30px;
-        }
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #064e3b, #047857);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-        }
-        .user-name { font-weight: 600; color: #064e3b; }
-        .user-role { font-size: 12px; color: #047857; }
-        .logout-btn {
-            background: none;
-            border: none;
-            color: #047857;
-            cursor: pointer;
-            font-size: 20px;
-        }
-
-        .content-wrapper { padding: 30px; }
-
-        /* Mobile */
-        @media (max-width: 768px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.active { transform: translateX(0); }
-            .main-content { margin-left: 0; }
+        :root {
+            --accent: #047857;
+            --accent-dark: #064e3b;
+            --accent-bg: #f0fdf4;
         }
     </style>
+    @include('layouts.partials.space-styles-dashboard')
 </head>
 <body>
     <div class="sidebar" id="sidebar">
@@ -145,7 +34,12 @@
         </div>
         <ul class="nav-menu">
             <li class="nav-item"><a href="{{ route('cheflot.dashboard') }}" class="nav-link {{ request()->routeIs('cheflot.dashboard') ? 'active' : '' }}"><i class="fas fa-tachometer-alt"></i><span>Dashboard</span></a></li>
-            <li class="nav-item"><a href="{{ route('cheflot.demandes') }}" class="nav-link {{ request()->routeIs('cheflot.demandes*') ? 'active' : '' }}"><i class="fas fa-file-alt"></i><span>Demandes</span></a></li>
+        
+            <li class="nav-item">
+    <a href="{{ route('cheflot.documents.recus') }}" class="nav-link {{ request()->routeIs('cheflot.documents.recus*') ? 'active' : '' }}">
+        <i class="fas fa-inbox"></i><span>Documents reçus</span>
+    </a>
+</li>
             <li class="nav-item"><a href="{{ route('cheflot.controleurs') }}" class="nav-link {{ request()->routeIs('cheflot.controleurs') ? 'active' : '' }}"><i class="fas fa-users"></i><span>Contrôleurs</span></a></li>
             <li class="nav-item"><a href="{{ route('cheflot.statistiques') }}" class="nav-link {{ request()->routeIs('cheflot.statistiques') ? 'active' : '' }}"><i class="fas fa-chart-line"></i><span>Statistiques</span></a></li>
             <li class="nav-item">
@@ -153,6 +47,12 @@
         <i class="fas fa-history"></i><span>Historique global</span>
     </a>
 </li>
+            <li class="nav-item">
+    <a href="{{ route('cheflot.archives.index') }}" class="nav-link {{ request()->routeIs('cheflot.archives.*') ? 'active' : '' }}">
+        <i class="fas fa-box-archive"></i><span>Archives</span>
+    </a>
+</li>
+            <li class="nav-item"><a href="{{ route('events.index') }}" class="nav-link {{ request()->routeIs('events.*') ? 'active' : '' }}"><i class="fas fa-calendar-days"></i><span>Événements</span></a></li>
             <div class="nav-divider"></div>
             <li class="nav-item"><a href="{{ route('profile.edit') }}" class="nav-link"><i class="fas fa-user-cog"></i><span>Mon profil</span></a></li>
         </ul>

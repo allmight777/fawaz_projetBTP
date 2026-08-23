@@ -31,4 +31,9 @@ class Lot extends Model
     {
         return $this->code . ' - ' . $this->nom;
     }
+    // Relation avec les demandes
+public function demandes(): \Illuminate\Database\Eloquent\Relations\HasMany
+{
+    return $this->hasMany(Demande::class);
+}
 }

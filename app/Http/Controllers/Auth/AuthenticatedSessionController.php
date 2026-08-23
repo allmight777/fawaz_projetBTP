@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,24 +12,16 @@ use Illuminate\View\View;
 
 class AuthenticatedSessionController extends Controller
 {
-    /**
-     * Display the login view.
-     */
     public function create(): View
     {
         return view('auth.login');
     }
 
-    /**
-     * Handle an incoming authentication request.
-     */
     public function store(LoginRequest $request): RedirectResponse
     {
         $request->authenticate();
-
         $request->session()->regenerate();
 
-        // Récupérer l'utilisateur connecté
         $user = Auth::user();
 
         // Vérifier si l'utilisateur est actif
@@ -39,29 +32,30 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        // Redirection selon le rôle
-        if ($user->role === 'ADMIN') {
-            return redirect()->route('admin.dashboard');
-        } elseif ($user->role === 'CHEF LOT') {
-            return redirect()->route('cheflot.dashboard');
-        } elseif ($user->role === 'CONTROLEUR') {
-            return redirect()->route('controleur.dashboard');
+        // Vérifier si l'utilisateur est en attente de validation
+        if ($user->role === User::ROLE_EN_ATTENTE) {
+            Auth::logout();
+            return redirect()->route('login')->withErrors([
+                'email' => 'Votre compte est en attente de validation. Un administrateur doit l\'activer.',
+            ]);
         }
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        // Redirection basée sur le rôle - Utiliser la méthode du modèle
+        $routeName = $user->getDashboardRoute();
+
+        // Log pour déboguer
+        \Log::info('Redirection vers:', ['route' => $routeName, 'user_id' => $user->id, 'role' => $user->role]);
+
+        return redirect()->route($routeName);
     }
 
-    /**
-     * Destroy an authenticated session.
-     */
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
-
         $request->session()->regenerateToken();
 
-        return redirect('/');
+        return redirect('/login');
     }
 }

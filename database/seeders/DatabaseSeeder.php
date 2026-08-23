@@ -17,6 +17,13 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // GED — structures et types de documents (indépendants des lots/utilisateurs existants)
+        $this->call([
+            StructureSeeder::class,
+            DocumentTypeSeeder::class,
+            GedTestAccountsSeeder::class,
+        ]);
+
         // 1. Créer les lots
         $lot1 = Lot::create([
             'nom' => 'Lot 1',
@@ -25,26 +32,7 @@ class DatabaseSeeder extends Seeder
             'actif' => true,
         ]);
 
-        $lot2 = Lot::create([
-            'nom' => 'Lot 2',
-            'code' => 'L02',
-            'description' => 'Lot 2 - Gros œuvre',
-            'actif' => true,
-        ]);
 
-        $lot3 = Lot::create([
-            'nom' => 'Lot 3',
-            'code' => 'L03',
-            'description' => 'Lot 3 - Couverture étanchéité',
-            'actif' => true,
-        ]);
-
-        $lot4 = Lot::create([
-            'nom' => 'Lot 4',
-            'code' => 'L04',
-            'description' => 'Lot 4 - Menuiserie extérieure',
-            'actif' => true,
-        ]);
 
         // 2. Créer les utilisateurs
         // Admin
@@ -83,40 +71,7 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ]);
 
-        // Controleur Lot 2
-        User::create([
-            'nom' => 'Fawaz',
-            'prenom' => 'Ingénieur',
-            'email' => 'fawazcpro@gmail.com',
-            'password' => Hash::make('password'),
-            'role' => 'CONTROLEUR',
-            'lot_id' => $lot2->id,
-            'actif' => true,
-            'email_verified_at' => now(),
-        ]);
 
-        // Controleur Lot 3
-        User::create([
-            'nom' => 'Agnide',
-            'prenom' => 'Ingénieur',
-            'email' => 'agnide37@gmail.com',
-            'password' => Hash::make('password'),
-            'role' => 'CONTROLEUR',
-            'lot_id' => $lot3->id,
-            'actif' => true,
-            'email_verified_at' => now(),
-        ]);
 
-        // Controleur Lot 4 (inactif)
-        User::create([
-            'nom' => 'Otilo',
-            'prenom' => 'Ingénieur',
-            'email' => 'otiloni99@gmail.com',
-            'password' => Hash::make('password'),
-            'role' => 'CONTROLEUR',
-            'lot_id' => $lot4->id,
-            'actif' => false,
-            'email_verified_at' => now(),
-        ]);
     }
 }

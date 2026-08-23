@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends($layout)
 
 @section('title', 'Mon profil')
 
@@ -18,7 +18,7 @@
     }
 
     .profile-header {
-        background: linear-gradient(135deg, #ff8c00, #ff6b00);
+        background: linear-gradient(135deg, {{ $theme['primary'] }}, {{ $theme['secondary'] }});
         padding: 30px;
         text-align: center;
         position: relative;
@@ -35,7 +35,7 @@
         margin: 0 auto 15px;
         font-size: 48px;
         font-weight: 700;
-        color: #ff8c00;
+        color: {{ $theme['primary'] }};
         box-shadow: 0 5px 15px rgba(0,0,0,0.2);
     }
 
@@ -80,7 +80,7 @@
     }
 
     .info-label i {
-        color: #ff8c00;
+        color: {{ $theme['primary'] }};
         width: 20px;
     }
 
@@ -104,7 +104,7 @@
     }
 
     label i {
-        color: #ff8c00;
+        color: {{ $theme['primary'] }};
         margin-right: 8px;
     }
 
@@ -120,8 +120,8 @@
 
     input:focus {
         outline: none;
-        border-color: #ff8c00;
-        box-shadow: 0 0 0 3px rgba(255,140,0,0.1);
+        border-color: {{ $theme['primary'] }};
+        box-shadow: 0 0 0 3px {{ $theme['glow'] }};
     }
 
     input:disabled {
@@ -130,7 +130,7 @@
     }
 
     .btn-submit {
-        background: linear-gradient(135deg, #ff8c00, #ff6b00);
+        background: linear-gradient(135deg, {{ $theme['primary'] }}, {{ $theme['secondary'] }});
         color: white;
         border: none;
         padding: 12px 25px;
@@ -195,7 +195,7 @@
     }
 
     .section-title i {
-        color: #ff8c00;
+        color: {{ $theme['primary'] }};
         font-size: 20px;
     }
 

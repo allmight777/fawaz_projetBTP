@@ -18,7 +18,10 @@ class CheckRole
             return redirect()->route('login');
         }
 
-        if (Auth::user()->role !== $role) {
+        // Plusieurs rôles autorisés possibles : role:ADMIN,CHEF LOT
+        $rolesAutorises = explode(',', $role);
+
+        if (!in_array(Auth::user()->role, $rolesAutorises, true)) {
             abort(403, 'Accès non autorisé.');
         }
 

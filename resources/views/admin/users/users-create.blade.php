@@ -9,7 +9,7 @@
         border-radius: 20px;
         padding: 30px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        max-width: 800px;
+        max-width: 900px;
         margin: 0 auto;
     }
     .form-title {
@@ -32,11 +32,15 @@
     .form-group {
         margin-bottom: 20px;
     }
+    .form-group-full {
+        grid-column: span 2;
+    }
     label {
         display: block;
         margin-bottom: 8px;
         font-weight: 600;
         color: #333;
+        font-size: 13px;
     }
     label i {
         color: #ff8c00;
@@ -53,11 +57,13 @@
         font-size: 14px;
         transition: all 0.3s;
         font-family: inherit;
+        background: #fafaf8;
     }
     input:focus, select:focus {
         outline: none;
         border-color: #ff8c00;
         box-shadow: 0 0 0 3px rgba(255,140,0,0.1);
+        background: white;
     }
     .form-actions {
         display: flex;
@@ -70,16 +76,18 @@
         background: linear-gradient(135deg, #ff8c00, #ff6b00);
         color: white;
         border: none;
-        padding: 12px 25px;
+        padding: 12px 30px;
         border-radius: 10px;
         font-weight: 600;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 8px;
+        transition: all 0.3s;
     }
     .btn-submit:hover {
         transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(255,140,0,0.3);
     }
     .btn-back {
         background: #6c757d;
@@ -93,6 +101,7 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
+        transition: all 0.3s;
     }
     .btn-back:hover {
         background: #5a6268;
@@ -112,6 +121,23 @@
         margin-bottom: 20px;
         color: #0066cc;
         font-size: 14px;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    .info-text i {
+        margin-top: 2px;
+    }
+    .section-divider {
+        grid-column: span 2;
+        border-top: 1px dashed #ddd;
+        padding-top: 10px;
+        margin-bottom: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #888;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
     @media (max-width: 768px) {
         .form-container {
@@ -120,11 +146,17 @@
         .form-row {
             grid-template-columns: 1fr;
         }
+        .form-group-full {
+            grid-column: span 1;
+        }
         .form-actions {
             flex-direction: column;
         }
         .btn-submit, .btn-back {
             justify-content: center;
+        }
+        .section-divider {
+            grid-column: span 1;
         }
     }
 </style>
@@ -138,13 +170,19 @@
     </div>
 
     <div class="info-text">
-        <i class="fas fa-info-circle"></i> Le mot de passe par défaut est <strong>"password"</strong>. L'utilisateur devra le modifier après sa première connexion.
+        <i class="fas fa-info-circle"></i>
+        <span>Le mot de passe par défaut est <strong>"password"</strong>. L'utilisateur devra le modifier après sa première connexion.</span>
     </div>
 
     <form method="POST" action="{{ route('admin.users.store') }}">
         @csrf
 
         <div class="form-row">
+            <!-- ===== IDENTITÉ ===== -->
+            <div class="section-divider">
+                <i class="fas fa-id-card"></i> Identité
+            </div>
+
             <div class="form-group">
                 <label><i class="fas fa-user"></i> Nom <span class="required">*</span></label>
                 <input type="text" name="nom" value="{{ old('nom') }}" placeholder="Nom de famille" required>
@@ -169,17 +207,61 @@
                 @enderror
             </div>
 
+            <!-- ===== STRUCTURE ===== -->
+            <div class="section-divider">
+                <i class="fas fa-building"></i> Structure & Rôle
+            </div>
+
             <div class="form-group">
-                <label><i class="fas fa-tag"></i> Rôle <span class="required">*</span></label>
-                <select name="role" required>
-                    <option value="">Sélectionner un rôle</option>
-                    <option value="CONTROLEUR" {{ old('role') == 'CONTROLEUR' ? 'selected' : '' }}>Contrôleur</option>
-                    <option value="CHEF LOT" {{ old('role') == 'CHEF LOT' ? 'selected' : '' }}>Chef Lot</option>
-                    <option value="ADMIN" {{ old('role') == 'ADMIN' ? 'selected' : '' }}>Admin</option>
+                <label><i class="fas fa-building"></i> Structure / Organisme <span class="required">*</span></label>
+                <select name="structure_id" required>
+                    <option value="">— Sélectionnez une structure —</option>
+                    @foreach($structures as $structure)
+                        <option value="{{ $structure->id }}" {{ old('structure_id') == $structure->id ? 'selected' : '' }}>
+                            {{ $structure->nom }} ({{ ucfirst(str_replace('_', ' ', $structure->type)) }})
+                        </option>
+                    @endforeach
                 </select>
-                @error('role')
+                @error('structure_id')
                     <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
                 @enderror
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-user-tag"></i> Catégorie de rôle <span class="required">*</span></label>
+                <select name="categorie_role" required>
+                    <option value="">— Sélectionnez —</option>
+                    <option value="responsable_organisme" {{ old('categorie_role') == 'responsable_organisme' ? 'selected' : '' }}>
+                        Responsable d'organisme
+                    </option>
+                    <option value="collaborateur" {{ old('categorie_role') == 'collaborateur' ? 'selected' : '' }}>
+                        Collaborateur
+                    </option>
+                </select>
+                @error('categorie_role')
+                    <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-briefcase"></i> Fonction</label>
+                <input type="text" name="fonction" value="{{ old('fonction') }}" placeholder="Ex: Ingénieur, Chef de projet...">
+                @error('fonction')
+                    <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
+                @enderror
+            </div>
+
+            <div class="form-group">
+                <label><i class="fas fa-microscope"></i> Spécialité</label>
+                <input type="text" name="specialite" value="{{ old('specialite') }}" placeholder="Ex: Structure, Électricité...">
+                @error('specialite')
+                    <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
+                @enderror
+            </div>
+
+            <!-- ===== AFFECTATION ===== -->
+            <div class="section-divider">
+                <i class="fas fa-link"></i> Affectation
             </div>
 
             <div class="form-group">

@@ -11,209 +11,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="shortcut icon" href="{{ asset('favicon.ico') }}" type="image/x-icon">
       <link rel="shortcut icon" href="{{ asset('images/login.jpg') }}" type="image/x-icon">
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root {
+            --accent: #ff8c00;
+            --accent-dark: #ff6b00;
+            --accent-bg: rgba(255,140,0,0.1);
         }
+    </style>
+    @include('layouts.partials.space-styles-dashboard')
 
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #f5f5f5;
-            overflow-x: hidden;
-        }
-
-        /* ========== MOBILE TOGGLE ========== */
-        .mobile-toggle {
-            display: none;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #ff8c00;
-            cursor: pointer;
-            margin-right: 15px;
-        }
-
-        /* ========== SIDEBAR ========== */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            width: 280px;
-            height: 100%;
-            background: linear-gradient(180deg, #1a1a1a 0%, #0d0d0d 100%);
-            z-index: 100;
-            transition: all 0.3s ease;
-            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-header {
-            padding: 25px 20px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .logo-icon {
-            width: 45px;
-            height: 45px;
-            background: linear-gradient(135deg, #ff8c00, #ff6b00);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-            color: white;
-        }
-
-        .logo-text h2 {
-            color: white;
-            font-size: 20px;
-            font-weight: 700;
-        }
-
-        .logo-text p {
-            color: #ff8c00;
-            font-size: 11px;
-            font-weight: 500;
-        }
-
-        .nav-menu {
-            padding: 0 15px;
-        }
-
-        .nav-item {
-            list-style: none;
-            margin-bottom: 8px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 12px 15px;
-            color: #a0a0a0;
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s;
-            font-weight: 500;
-        }
-
-        .nav-link i {
-            width: 22px;
-            font-size: 18px;
-        }
-
-        .nav-link:hover {
-            background: rgba(255,140,0,0.1);
-            color: #ff8c00;
-        }
-
-        .nav-link.active {
-            background: linear-gradient(135deg, #ff8c00, #ff6b00);
-            color: white;
-            box-shadow: 0 5px 15px rgba(255,140,0,0.3);
-        }
-
-        .nav-divider {
-            height: 1px;
-            background: rgba(255,255,255,0.1);
-            margin: 15px 0;
-        }
-
-        /* ========== MAIN CONTENT ========== */
-        .main-content {
-            margin-left: 280px;
-            transition: all 0.3s ease;
-        }
-
-        /* Top Bar */
-        .top-bar {
-            background: white;
-            padding: 15px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            position: sticky;
-            top: 0;
-            z-index: 99;
-        }
-
-        .top-bar-left {
-            display: flex;
-            align-items: center;
-        }
-
-        .page-title {
-            font-size: 24px;
-            font-weight: 700;
-            color: #1a1a1a;
-        }
-
-        .user-menu {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 8px 15px;
-            background: #f5f5f5;
-            border-radius: 30px;
-        }
-
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, #ff8c00, #ff6b00);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-weight: 700;
-            font-size: 16px;
-        }
-
-        .user-name {
-            font-weight: 600;
-            color: #333;
-        }
-
-        .user-role {
-            font-size: 12px;
-            color: #ff8c00;
-        }
-
-        .logout-btn {
-            background: none;
-            border: none;
-            color: #ff6b00;
-            cursor: pointer;
-            font-size: 20px;
-            transition: transform 0.3s;
-        }
-
-        .logout-btn:hover {
-            transform: scale(1.1);
-        }
-
-        /* Content Wrapper */
-        .content-wrapper {
-            padding: 30px;
-        }
-
+    <style>
         /* Cards */
         .stats-grid {
             display: grid;
@@ -378,78 +187,18 @@
             border-left: 4px solid #28a745;
         }
 
-        /* Responsive */
+        /* Responsive (spécifique aux cartes/tableaux admin) */
         @media (max-width: 768px) {
-            .mobile-toggle {
-                display: block;
-            }
-
-            .sidebar {
-                transform: translateX(-100%);
-            }
-
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .top-bar {
-                padding: 12px 15px;
-                flex-wrap: wrap;
-            }
-
-            .page-title {
-                font-size: 18px;
-            }
-
-            .content-wrapper {
-                padding: 15px;
-            }
-
-            .stats-grid {
-                gap: 15px;
-            }
-
-            .stat-card {
-                padding: 15px;
-            }
-
-            .stat-number {
-                font-size: 24px;
-            }
-
-            .table-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
+            .stats-grid { gap: 15px; }
+            .stat-card { padding: 15px; }
+            .stat-number { font-size: 24px; }
+            .table-header { flex-direction: column; align-items: flex-start; }
         }
 
         /* Loading state */
         .loading {
             opacity: 0.6;
             pointer-events: none;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #ff8c00;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #ff6b00;
         }
     </style>
 </head>
@@ -485,6 +234,18 @@
                 <a href="{{ route('admin.lots') }}" class="nav-link {{ request()->routeIs('admin.lots*') ? 'active' : '' }}">
                     <i class="fas fa-layer-group"></i>
                     <span>Gestion des lots</span>
+                </a>
+            </li>
+            <li class="nav-item">
+    <a href="{{ route('admin.document-types.index') }}" class="nav-link {{ request()->routeIs('admin.document-types*') ? 'active' : '' }}">
+        <i class="fas fa-file-alt"></i>
+        <span>Types de documents</span>
+    </a>
+</li>
+            <li class="nav-item">
+                <a href="{{ route('events.index') }}" class="nav-link {{ request()->routeIs('events.*') ? 'active' : '' }}">
+                    <i class="fas fa-calendar-days"></i>
+                    <span>Événements</span>
                 </a>
             </li>
             <div class="nav-divider"></div>
@@ -526,17 +287,7 @@
         </div>
 
         <div class="content-wrapper">
-            @if(session('success'))
-                <div class="alert-success">
-                    <i class="fas fa-check-circle"></i> {{ session('success') }}
-                </div>
-            @endif
-
-            @if(session('error'))
-                <div style="background: #f8d7da; color: #721c24; padding: 12px 20px; border-radius: 10px; margin-bottom: 20px; border-left: 4px solid #dc3545;">
-                    <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
-                </div>
-            @endif
+          
 
             @yield('content')
         </div>

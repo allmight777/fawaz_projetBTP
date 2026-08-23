@@ -1,0 +1,39 @@
+[90m= [39m[34;4mIlluminate\Support\Collection[39;24m {#7637
+    [34mall[39m: [
+      {#7635
+        +"[1mid[22m": [35m32[39m,
+        +"[1mtitre[22m": [32m"[39m[32mA TRANSFERER[39m[32m"[39m,
+        +"[1mstatut[22m": [32m"[39m[32men_cours[39m[32m"[39m,
+        +"[1mnecessite_transfert_chef[22m": [35m0[39m,
+        +"[1mcree_par[22m": [35m9[39m,
+      },
+      {#7634
+        +"[1mid[22m": [35m31[39m,
+        +"[1mtitre[22m": [32m"[39m[32mA TRANSFERER[39m[32m"[39m,
+        +"[1mstatut[22m": [32m"[39m[32men_cours[39m[32m"[39m,
+        +"[1mnecessite_transfert_chef[22m": [35m0[39m,
+        +"[1mcree_par[22m": [35m9[39m,
+      },
+      {#7632
+        +"[1mid[22m": [35m30[39m,
+        +"[1mtitre[22m": [32m"[39m[32mFAWAZ2[39m[32m"[39m,
+        +"[1mstatut[22m": [32m"[39m[32msoumis[39m[32m"[39m,
+        +"[1mnecessite_transfert_chef[22m": [35m0[39m,
+        +"[1mcree_par[22m": [35m11[39m,
+      },
+      {#7631
+        +"[1mid[22m": [35m29[39m,
+        +"[1mtitre[22m": [32m"[39m[32mFAWAZ[39m[32m"[39m,
+        +"[1mstatut[22m": [32m"[39m[32men_cours[39m[32m"[39m,
+        +"[1mnecessite_transfert_chef[22m": [35m0[39m,
+        +"[1mcree_par[22m": [35m11[39m,
+      },
+      {#7630
+        +"[1mid[22m": [35m28[39m,
+        +"[1mtitre[22m": [32m"[39m[32m22222[39m[32m"[39m,
+        +"[1mstatut[22m": [32m"[39m[32men_analyse[39m[32m"[39m,
+        +"[1mnecessite_transfert_chef[22m": [35m0[39m,
+        +"[1mcree_par[22m": [35m9[39m,
+      },
+    ],
+  }

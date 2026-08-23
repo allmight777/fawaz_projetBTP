@@ -1,0 +1,17 @@
+[90m= [39m[34;4mApp\Models\Dossier[39;24m {#8234
+    [34mid[39m: [35m32[39m,
+    [34midentifiant[39m: [32m"[39m[32mDOS-20260725-D26ECC[39m[32m"[39m,
+    [34mdocument_type_id[39m: [35m29[39m,
+    [34mstructure_emettrice_id[39m: [36mnull[39m,
+    [34mlot_id[39m: [36mnull[39m,
+    [34mtitre[39m: [32m"[39m[32mA TRANSFERER[39m[32m"[39m,
+    [34mdescription[39m: [36mnull[39m,
+    [34mmode_traitement[39m: [32m"[39m[32msimple[39m[32m"[39m,
+    [34mstatut[39m: [32m"[39m[32men_cours[39m[32m"[39m,
+    [34mnecessite_transfert_chef[39m: [35m0[39m,
+    [34mstructure_cible[39m: [36mnull[39m,
+    [34mversion_courante[39m: [35m1[39m,
+    [34mcree_par[39m: [35m9[39m,
+    [34mcreated_at[39m: [32m"[39m[32m2026-07-25 10:51:57[39m[32m"[39m,
+    [34mupdated_at[39m: [32m"[39m[32m2026-07-25 10:52:04[39m[32m"[39m,
+  }
