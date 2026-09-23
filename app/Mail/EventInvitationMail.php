@@ -32,6 +32,7 @@ class EventInvitationMail extends Mailable
                 'event' => $this->event,
                 'destinataire' => $this->destinataire,
                 'autresParticipants' => $autresParticipants,
+                'url' => route('login'),
             ]);
     }
 }

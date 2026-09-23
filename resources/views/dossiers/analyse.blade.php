@@ -25,6 +25,7 @@
         display: inline-flex;
         align-items: center;
         gap: 6px;
+        transition: all 0.25s ease;
     }
     .btn-back:hover { background: #d1d5db; }
 
@@ -45,6 +46,43 @@
         gap: 8px;
     }
     .card h3 i { color: #047857; }
+
+    .card-title-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        flex-wrap: wrap;
+    }
+    .card-title-row h3 {
+        margin-bottom: 0;
+    }
+
+    .btn-check-all {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: #ecfdf5;
+        color: #047857;
+        border: 1px solid #a7f3d0;
+        padding: 8px 16px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        user-select: none;
+        letter-spacing: 0.2px;
+    }
+    .btn-check-all:hover {
+        background: #047857;
+        color: #ffffff;
+        border-color: #047857;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(4,120,87,0.25);
+    }
+    .btn-check-all i { font-size: 12px; }
 
     .info-row {
         display: flex;
@@ -78,6 +116,7 @@
         display: inline-flex;
         align-items: center;
         gap: 4px;
+        transition: all 0.3s ease;
     }
     .btn-download:hover { color: #064e3b; gap: 8px; }
 
@@ -85,9 +124,12 @@
         display: flex;
         align-items: center;
         gap: 14px;
-        padding: 12px 0;
+        padding: 12px 14px;
+        border-radius: 10px;
         border-bottom: 1px solid #f3f4f6;
+        transition: background 0.2s ease;
     }
+    .checklist-item:hover { background: #f9fafb; }
     .checklist-item:last-child { border-bottom: none; }
     .checklist-item input[type="checkbox"] {
         width: 20px; height: 20px;
@@ -106,17 +148,35 @@
     .item-badge.facultatif { background: #f3f4f6; color: #6b7280; }
 
     .btn-save {
-        background: #2563eb;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #2563eb, #1d4ed8);
         color: white;
         border: none;
-        padding: 10px 22px;
+        padding: 12px 26px;
         border-radius: 10px;
         font-weight: 600;
         font-size: 13px;
+        letter-spacing: 0.2px;
         cursor: pointer;
-        margin-top: 12px;
+        margin-top: 16px;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
     }
-    .btn-save:hover { background: #1a4fc4; }
+    .btn-save:hover {
+        background: linear-gradient(135deg, #1d4ed8, #1e40af);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37,99,235,0.35);
+    }
+    .btn-save i { font-size: 13px; }
+
+    .form-actions {
+        display: flex;
+        justify-content: center;
+        margin-top: 4px;
+    }
 
     .observations-list { margin-bottom: 16px; }
     .observation-item {
@@ -159,33 +219,50 @@
 
     .form-group { margin-bottom: 16px; }
     .form-group label { display: block; font-weight: 600; font-size: 13px; color: #333; margin-bottom: 6px; }
-    .form-group textarea {
+    .form-group textarea,
+    .form-group select {
         width: 100%;
         padding: 10px 14px;
         border: 1px solid #e0e8f0;
         border-radius: 8px;
         font-size: 14px;
         font-family: inherit;
+        background: white;
+    }
+    .form-group textarea {
         min-height: 90px;
         resize: vertical;
     }
-    .form-group textarea:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 3px rgba(4,120,87,0.1); }
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #047857;
+        box-shadow: 0 0 0 3px rgba(4,120,87,0.1);
+    }
     .error-text { color: #dc2626; font-size: 12px; margin-top: 6px; }
 
     .btn-submit {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
         background: linear-gradient(135deg, #047857, #064e3b);
         color: white;
         border: none;
-        padding: 12px 28px;
-        border-radius: 10px;
+        padding: 14px 30px;
+        border-radius: 12px;
         font-weight: 600;
         font-size: 14px;
+        letter-spacing: 0.2px;
         cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
+        transition: all 0.25s ease;
+        box-shadow: 0 2px 10px rgba(4,120,87,0.25);
     }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(4,120,87,0.3); }
+    .btn-submit:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(4,120,87,0.4);
+    }
+    .btn-submit i { font-size: 14px; }
 
     .already-done {
         padding: 16px;
@@ -194,6 +271,11 @@
         border-radius: 10px;
         color: #064e3b;
         font-size: 14px;
+    }
+
+    @media (max-width: 640px) {
+        .card-title-row { flex-direction: column; align-items: flex-start; }
+        .decision-buttons { flex-direction: column; }
     }
 </style>
 
@@ -251,13 +333,20 @@
 
 @if($checklistItems->count() > 0)
 <div class="card">
-    <h3><i class="fas fa-list-check"></i> Vérifications</h3>
+    <div class="card-title-row">
+        <h3><i class="fas fa-list-check"></i> Vérifications</h3>
+        @unless($dejaTermine)
+            <button type="button" class="btn-check-all" id="btnCheckAll">
+                <i class="fas fa-check-double"></i> Tout cocher
+            </button>
+        @endunless
+    </div>
     <form action="{{ route('controleur.affectations.reponses', $documentAssignment) }}" method="POST">
         @csrf
         @foreach($checklistItems as $item)
         @php $reponse = $reponsesMap->get($item->id); @endphp
         <div class="checklist-item">
-            <input type="checkbox" name="reponses[{{ $item->id }}]" value="1" {{ $reponse && $reponse->valeur ? 'checked' : '' }} {{ $dejaTermine ? 'disabled' : '' }}>
+            <input type="checkbox" class="checklist-box" name="reponses[{{ $item->id }}]" value="1" {{ $reponse && $reponse->valeur ? 'checked' : '' }} {{ $dejaTermine ? 'disabled' : '' }}>
             <span class="item-label">{{ $item->libelle }}</span>
             <span class="item-badge {{ $item->obligatoire ? 'obligatoire' : 'facultatif' }}">
                 {{ $item->obligatoire ? 'Obligatoire' : 'Facultatif' }}
@@ -266,7 +355,9 @@
         @endforeach
 
         @unless($dejaTermine)
-        <button type="submit" class="btn-save"><i class="fas fa-save"></i> Enregistrer les vérifications</button>
+        <div class="form-actions">
+            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Enregistrer les vérifications</button>
+        </div>
         @endunless
     </form>
 </div>
@@ -293,7 +384,9 @@
             @error('contenu')<div class="error-text"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>@enderror
         </div>
 
-        <button type="submit" class="btn-save"><i class="fas fa-paper-plane"></i> Envoyer l'observation</button>
+        <div class="form-actions">
+            <button type="submit" class="btn-save"><i class="fas fa-paper-plane"></i> Envoyer l'observation</button>
+        </div>
     </form>
 </div>
 @endunless
@@ -335,8 +428,49 @@
 
         <form action="{{ route('controleur.affectations.terminer', $documentAssignment) }}" method="POST">
             @csrf
-            <button type="submit" class="btn-submit"><i class="fas fa-flag-checkered"></i> Marquer mon analyse comme terminée</button>
+            <div class="form-actions">
+                <button type="submit" class="btn-submit"><i class="fas fa-flag-checkered"></i> Marquer mon analyse comme terminée</button>
+            </div>
         </form>
     @endif
 </div>
+
+<script>
+    (function () {
+        var btn = document.getElementById('btnCheckAll');
+        if (!btn) return;
+
+        var boxes = document.querySelectorAll('.checklist-box:not([disabled])');
+        if (boxes.length === 0) return;
+
+        var label = btn.querySelector('i');
+        var textNode = btn.childNodes[btn.childNodes.length - 1];
+
+        function allChecked() {
+            return Array.prototype.every.call(boxes, function (b) { return b.checked; });
+        }
+
+        function updateButton() {
+            if (allChecked()) {
+                if (textNode) textNode.nodeValue = ' Tout décocher';
+                if (label) label.className = 'fas fa-xmark';
+            } else {
+                if (textNode) textNode.nodeValue = ' Tout cocher';
+                if (label) label.className = 'fas fa-check-double';
+            }
+        }
+
+        btn.addEventListener('click', function () {
+            var target = !allChecked();
+            boxes.forEach(function (b) { b.checked = target; });
+            updateButton();
+        });
+
+        boxes.forEach(function (b) {
+            b.addEventListener('change', updateButton);
+        });
+
+        updateButton();
+    })();
+</script>
 @endsection

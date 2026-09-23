@@ -17,6 +17,8 @@ class DocumentVersion extends Model
         'fichier_nom',
         'fichier_chemin',
         'fichier_valide_chemin',
+        'fichier_valide_hash',
+        'fichier_valide_scelle_le',
         'fichier_url',
         'importe_par',
         'date_import',
@@ -26,6 +28,7 @@ class DocumentVersion extends Model
 
     protected $casts = [
         'date_import' => 'datetime',
+        'fichier_valide_scelle_le' => 'datetime',
     ];
 
     public function dossier(): BelongsTo

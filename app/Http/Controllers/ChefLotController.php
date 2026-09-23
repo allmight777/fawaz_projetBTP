@@ -15,6 +15,11 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
+use App\Models\DocumentDecision;
+use App\Mail\DocumentNeedsCorrectionMail;
+use App\Mail\DocumentValidatedMail;
+use App\Models\DocumentVersion;
+
 
 class ChefLotController extends Controller
 {
@@ -448,16 +453,26 @@ class ChefLotController extends Controller
         return view('cheflot.documents-recus', compact('dossiers'));
     }
 
-    public function voirDocumentRecu($id)
-    {
-        $user = Auth::user();
+   public function voirDocumentRecu($id)
+{
+    $user = Auth::user();
 
-        $dossier = Dossier::transmisA($user)
-            ->with(['documentType', 'versions.importePar', 'creePar.structure', 'transmissions.emetteur'])
-            ->findOrFail($id);
+    $dossier = Dossier::transmisA($user)
+        ->with([
+            'documentType',
+            'versions' => function ($q) {
+                $q->orderByDesc('numero_version');
+            },
+            'versions.importePar',
+            'versions.affectations.controleur',
+            'versions.affectations.observations.auteur',
+            'creePar.structure',
+            'transmissions.emetteur',
+        ])
+        ->findOrFail($id);
 
-        return view('cheflot.document-recu-detail', compact('dossier'));
-    }
+    return view('cheflot.document-recu-detail', compact('dossier'));
+}
 
     public function telechargerDocumentRecu($dossierId, $versionId)
     {
@@ -474,53 +489,139 @@ class ChefLotController extends Controller
         return Storage::disk('public')->download($version->chemin_a_servir, $version->nom_affiche);
     }
 
-    public function traiterDecision(Request $request, $id)
-    {
-        $user = Auth::user();
+public function traiterDecision(Request $request, $id)
+{
+    $user = Auth::user();
 
-        $dossier = Dossier::transmisA($user)->findOrFail($id);
+    $dossier = Dossier::transmisA($user)->findOrFail($id);
 
-        $request->validate([
-            'decision' => 'required|in:valide,a_corriger',
-            'commentaires' => 'nullable|string|max:2000',
-        ], [
-            'decision.required' => 'Veuillez choisir une décision.',
+    $request->validate([
+        'decision' => 'required|in:valide,a_corriger',
+        'commentaires' => 'nullable|string|max:2000',
+    ], [
+        'decision.required' => 'Veuillez choisir une décision.',
+    ]);
+
+    $derniereVersion = $dossier->versions()->orderByDesc('numero_version')->first();
+
+    if (!$derniereVersion) {
+        return back()->with('error', 'Aucune version trouvée pour ce dossier.');
+    }
+
+    $decisionModel = null;
+
+    DB::transaction(function () use ($request, $user, $dossier, $derniereVersion, &$decisionModel) {
+        $decisionModel = \App\Models\DocumentDecision::create([
+            'document_version_id' => $derniereVersion->id,
+            'decision' => $request->decision,
+            'validateur_id' => $user->id,
+            'date_decision' => now(),
+            'commentaires' => $request->commentaires,
         ]);
 
-        $derniereVersion = $dossier->versions()->orderByDesc('numero_version')->first();
+        $derniereVersion->update([
+            'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
+        ]);
 
-        if (!$derniereVersion) {
-            return back()->with('error', 'Aucune version trouvée pour ce dossier.');
-        }
+        $dossier->update([
+            'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
+        ]);
 
-        DB::transaction(function () use ($request, $user, $dossier, $derniereVersion) {
-            \App\Models\DocumentDecision::create([
-                'document_version_id' => $derniereVersion->id,
-                'decision' => $request->decision,
-                'validateur_id' => $user->id,
-                'date_decision' => now(),
-                'commentaires' => $request->commentaires,
-            ]);
+        if ($request->decision === 'valide') {
+            app(\App\Services\DocumentStampingService::class)->tamponner($derniereVersion);
 
-            $derniereVersion->update([
-                'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
-            ]);
-
-            $dossier->update([
-                'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
-            ]);
-
-            if ($request->decision === 'valide') {
-                app(\App\Services\DocumentStampingService::class)->tamponner($derniereVersion);
+            if ($derniereVersion->fichier_valide_hash) {
+                \App\Models\AuditLog::enregistrer('SCELLEMENT', $dossier->id, [
+                    'document_version_id' => $derniereVersion->id,
+                    'numero_version' => $derniereVersion->numero_version,
+                    'hash_sha256' => $derniereVersion->fichier_valide_hash,
+                    'scelle_le' => $derniereVersion->fichier_valide_scelle_le?->toIso8601String(),
+                    'valide_par' => $user->id,
+                ]);
             }
-        });
+        }
+    });
 
-        $message = $request->decision === 'valide'
-            ? 'Document validé avec succès.'
-            : 'Document renvoyé pour correction.';
-
-        return redirect()->route('cheflot.documents.recus')->with('success', $message);
+    // ============ ENVOI DES EMAILS ============
+    if ($request->decision === 'valide') {
+        $this->envoyerEmailsValidation($dossier, $derniereVersion, $user, $decisionModel);
+        $message = 'Document validé avec succès. Les parties prenantes ont été notifiées.';
+    } else {
+        $this->envoyerEmailsCorrection($dossier, $derniereVersion, $user, $decisionModel);
+        $message = 'Document renvoyé pour correction. Les parties prenantes ont été notifiées.';
     }
+
+    return redirect()->route('cheflot.documents.recus')->with('success', $message);
+}
+
+/**
+ * Récupère les destinataires communs (soumetteur + chef d'entreprise).
+ */
+private function getDestinataires(Dossier $dossier): \Illuminate\Support\Collection
+{
+    $destinataires = collect();
+
+    // 1) Le collaborateur qui a soumis le document
+    $soumetteur = $dossier->creePar;
+    if ($soumetteur && $soumetteur->email) {
+        $destinataires->push($soumetteur);
+    }
+
+    // 2) Le chef d'entreprise (responsable_organisme de la structure émettrice)
+    $structureEmettrice = $dossier->structure_emettrice_id
+        ?? $dossier->creePar->structure_id
+        ?? null;
+
+    if ($structureEmettrice) {
+        $chefEntreprise = User::where('structure_id', $structureEmettrice)
+            ->where('categorie_role', 'responsable_organisme')
+            ->first();
+
+        if ($chefEntreprise && $chefEntreprise->email) {
+            if (!$destinataires->contains('id', $chefEntreprise->id)) {
+                $destinataires->push($chefEntreprise);
+            }
+        }
+    }
+
+    return $destinataires;
+}
+
+/**
+ * Envoie un email de validation au soumetteur + chef d'entreprise.
+ */
+private function envoyerEmailsValidation(Dossier $dossier, DocumentVersion $version, User $controleur, ?\App\Models\DocumentDecision $decision): void
+{
+    foreach ($this->getDestinataires($dossier) as $destinataire) {
+        try {
+            Mail::to($destinataire->email)
+                ->send(new \App\Mail\DocumentValidatedMail($version, $dossier, $controleur, $decision));
+
+            Log::info('Email validation envoyé à ' . $destinataire->email . ' pour dossier #' . $dossier->id);
+        } catch (\Exception $e) {
+            Log::error('Erreur envoi email validation à ' . $destinataire->email . ': ' . $e->getMessage());
+        }
+    }
+}
+
+/**
+ * Envoie un email de demande de correction au soumetteur + chef d'entreprise.
+ */
+private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $version, User $controleur, ?\App\Models\DocumentDecision $decision): void
+{
+    foreach ($this->getDestinataires($dossier) as $destinataire) {
+        try {
+            Mail::to($destinataire->email)
+                ->send(new \App\Mail\DocumentNeedsCorrectionMail($version, $dossier, $controleur, $decision));
+
+            Log::info('Email correction envoyé à ' . $destinataire->email . ' pour dossier #' . $dossier->id);
+        } catch (\Exception $e) {
+            Log::error('Erreur envoi email correction à ' . $destinataire->email . ': ' . $e->getMessage());
+        }
+    }
+}
+
+
 
     public function apercuDocumentRecu($dossierId, $versionId)
     {
@@ -543,24 +644,25 @@ class ChefLotController extends Controller
         ]);
     }
 
-    public function assignerForm($id)
-    {
-        $user = Auth::user();
+  public function assignerForm($id)
+{
+    $user = Auth::user();
 
-        $dossier = Dossier::transmisA($user)->findOrFail($id);
+    $dossier = Dossier::transmisA($user)->findOrFail($id);
 
-        $collaborateurs = User::where('structure_id', $user->structure_id)
-            ->where('categorie_role', 'collaborateur')
-            ->get();
+    $collaborateurs = User::where('structure_id', $user->structure_id)
+        ->where('categorie_role', 'collaborateur')
+        ->get();
 
-        return response()->json([
-            'collaborateurs' => $collaborateurs->map(fn($c) => [
-                'id' => $c->id,
-                'full_name' => $c->full_name,
-                'specialite' => $c->specialite,
-            ]),
-        ]);
-    }
+    return response()->json([
+        'collaborateurs' => $collaborateurs->map(fn($c) => [
+            'id' => $c->id,
+            'full_name' => $c->full_name,
+            'fonction' => $c->fonction,          // ✅ cohérent avec la vue
+            'specialite' => $c->specialite,
+        ]),
+    ]);
+}
 
     public function assignerDocument(Request $request, $id)
     {

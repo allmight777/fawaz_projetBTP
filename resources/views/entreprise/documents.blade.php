@@ -701,6 +701,9 @@
 
             const typeSelect = block.querySelector('.document-type-select');
             if (typeSelect) typeSelect.setAttribute('onchange', 'loadChecklist(this)');
+
+            const checkAllBtn = block.querySelector('.checklist-check-all-btn');
+            if (checkAllBtn) checkAllBtn.setAttribute('onclick', `toggleAllChecklist(${newIndex}, this)`);
         });
 
         checklistState = newChecklistState;
@@ -758,9 +761,12 @@
 
             <div class="form-group checklist-section" style="display:none;">
                 <label>Vérifications requises <span class="required">*</span></label>
-                <div class="checklist-info" style="font-size:12px; color:#888; margin-bottom:10px; padding:8px 12px; background:#eff4ff; border-radius:6px; display:flex; justify-content:space-between;">
+                <div class="checklist-info" style="font-size:12px; color:#888; margin-bottom:10px; padding:8px 12px; background:#eff4ff; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
                     <span><i class="fas fa-list-check"></i> Critères à valider</span>
-                    <span class="progress checklist-progress" style="font-weight:600; color:#2563eb;">0/0 validés</span>
+                    <span style="display:flex; align-items:center; gap:12px;">
+                        <button type="button" class="checklist-check-all-btn" onclick="toggleAllChecklist(${index}, this)" style="border:1px solid #2563eb; color:#2563eb; background:#fff; border-radius:6px; padding:2px 10px; font-size:11px; font-weight:600; cursor:pointer;"><i class="fas fa-check-double"></i> Tout cocher</button>
+                        <span class="progress checklist-progress" style="font-weight:600; color:#2563eb;">0/0 validés</span>
+                    </span>
                 </div>
                 <div class="checklist-container checklist-items" style="background:#f8faff; border-radius:8px; padding:16px; border:1px solid #e0e8f0; max-height:200px; overflow-y:auto;"></div>
                 <div class="checklist-error" style="display:none; color:#dc2626; font-size:12px; margin-top:8px; padding:8px 12px; background:#fee2e2; border-radius:6px;">
@@ -941,12 +947,40 @@
         validateForm();
     }
 
+    function toggleAllChecklist(index, btn) {
+        const block = document.querySelector(`.document-block[data-index="${index}"]`);
+        const state = checklistState[index];
+        if (!state || !state.items.length) return;
+
+        const shouldCheck = state.items.some(i => !state.checked[i.id]);
+
+        state.items.forEach(item => {
+            state.checked[item.id] = shouldCheck;
+            const cb = block.querySelector(`#checklist-item-${index}-${item.id} input[type="checkbox"]`);
+            if (cb) cb.checked = shouldCheck;
+        });
+
+        btn.innerHTML = shouldCheck
+            ? '<i class="fas fa-times"></i> Tout décocher'
+            : '<i class="fas fa-check-double"></i> Tout cocher';
+
+        updateChecklistProgress(index);
+        validateForm();
+    }
+
     function updateChecklistProgress(index) {
         const block = document.querySelector(`.document-block[data-index="${index}"]`);
         const state = checklistState[index];
         const total = state.items.length;
         const checkedCount = state.items.filter(i => state.checked[i.id]).length;
         block.querySelector('.checklist-progress').textContent = `${checkedCount}/${total} validés`;
+
+        const btn = block.querySelector('.checklist-check-all-btn');
+        if (btn) {
+            btn.innerHTML = (total > 0 && checkedCount === total)
+                ? '<i class="fas fa-times"></i> Tout décocher'
+                : '<i class="fas fa-check-double"></i> Tout cocher';
+        }
     }
 
     function validateForm() {

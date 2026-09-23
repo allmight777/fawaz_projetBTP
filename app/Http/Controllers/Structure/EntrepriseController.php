@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\DocumentType;
 use App\Models\Dossier;
+use App\Mail\DocumentForValidationMail;
 use App\Models\DocumentVersion;
 use App\Models\DocumentTransmission;
 use App\Models\TransmissionDestinataire;
@@ -177,7 +178,7 @@ class EntrepriseController extends Controller
     {
         $user = Auth::user();
         $dossier = Dossier::with(['documentType', 'versions', 'versions.importePar'])
-            ->where('cree_par', $user->id)
+            ->visiblePar($user)
             ->findOrFail($id);
 
         return view('entreprise.dossiers-show', compact('dossier'));
@@ -337,7 +338,7 @@ class EntrepriseController extends Controller
                             // Notifie le chef seulement si ce n'est pas lui-même qui a soumis
                             if ($chefEntreprise->id !== $user->id) {
                                 try {
-                                    Mail::to($chefEntreprise->email)->send(new DocumentForControlMail($version, $dossier, $user));
+                                    Mail::to($chefEntreprise->email)->send(new DocumentForValidationMail($version, $dossier, $user));
                                     Log::info('Email de validation envoyé au chef entreprise ' . $chefEntreprise->email);
                                 } catch (\Exception $e) {
                                     Log::error('Erreur envoi email vers chef entreprise: ' . $e->getMessage());
@@ -429,7 +430,7 @@ class EntrepriseController extends Controller
     public function telechargerDossier($id)
     {
         $user = Auth::user();
-        $dossier = Dossier::where('cree_par', $user->id)->findOrFail($id);
+        $dossier = Dossier::visiblePar($user)->findOrFail($id);
 
         $version = $dossier->versions()->orderByDesc('numero_version')->first();
 
@@ -476,7 +477,7 @@ class EntrepriseController extends Controller
     public function telecharger($dossierId, $versionId)
     {
         $user = Auth::user();
-        $dossier = Dossier::where('cree_par', $user->id)->findOrFail($dossierId);
+        $dossier = Dossier::visiblePar($user)->findOrFail($dossierId);
         $version = $dossier->versions()->findOrFail($versionId);
 
         if ($version->chemin_a_servir && Storage::disk('public')->exists($version->chemin_a_servir)) {
@@ -489,31 +490,63 @@ class EntrepriseController extends Controller
     /**
      * Affiche le formulaire de correction pour un dossier en attente de correction
      */
-    public function corrigerForm($id)
-    {
-        $user = Auth::user();
-        $dossier = Dossier::with(['documentType', 'versions' => function($q) {
+  public function corrigerForm($id)
+{
+    $user = Auth::user();
+
+    $dossier = Dossier::with([
+            'documentType',
+            'versions' => function ($q) {
                 $q->orderByDesc('numero_version');
-            }])
-            ->where('cree_par', $user->id)
-            ->findOrFail($id);
+            },
+            'versions.importePar',
+            'versions.affectations.controleur',
+            'versions.affectations.observations.auteur',
+        ])
+        ->where('cree_par', $user->id)
+        ->findOrFail($id);
 
-        if ($dossier->statut !== 'a_corriger') {
-            return redirect()->route('entreprise.dossiers.show', $dossier->id)
-                ->with('error', 'Ce dossier n\'est pas en attente de correction.');
-        }
-
-        $derniereVersion = $dossier->versions->first();
-        $decision = null;
-
-        if ($derniereVersion) {
-            $decision = \App\Models\DocumentDecision::where('document_version_id', $derniereVersion->id)
-                ->orderByDesc('created_at')
-                ->first();
-        }
-
-        return view('entreprise.dossiers-corriger', compact('dossier', 'decision', 'derniereVersion'));
+    if ($dossier->statut !== 'a_corriger') {
+        return redirect()->route('entreprise.dossiers.show', $dossier->id)
+            ->with('error', 'Ce dossier n\'est pas en attente de correction.');
     }
+
+    $derniereVersion = $dossier->versions->first();
+    $decision = null;
+
+    if ($derniereVersion) {
+        $decision = \App\Models\DocumentDecision::where('document_version_id', $derniereVersion->id)
+            ->orderByDesc('created_at')
+            ->first();
+    }
+
+    // Récupérer toutes les affectations + observations des collaborateurs du BC
+    $affectations = $dossier->versions
+        ->flatMap(fn($v) => $v->affectations)
+        ->groupBy('controleur_id')
+        ->map(function ($groupe) {
+            // Privilégier l'affectation terminée, sinon la plus récente
+            return $groupe->firstWhere('statut', 'termine')
+                ?? $groupe->sortByDesc('created_at')->first();
+        })
+        ->values();
+
+    // Toutes les observations de tous les collaborateurs sur ce dossier
+    $observations = $dossier->versions
+        ->flatMap(fn($v) => $v->affectations)
+        ->flatMap(fn($a) => $a->observations)
+        ->sortByDesc('created_at')
+        ->values();
+
+    // Pour chaque observation, on associe son auteur pour l'affichage
+    return view('entreprise.dossiers-corriger', compact(
+        'dossier',
+        'decision',
+        'derniereVersion',
+        'affectations',
+        'observations'
+    ));
+}
 
     /**
      * Enregistre la correction d'un dossier
@@ -576,10 +609,28 @@ class EntrepriseController extends Controller
                 ]);
 
                 try {
-                    Mail::to($chefBC->email)->send(new DocumentForControlMail($nouvelleVersion, $dossier, $user));
+                    Mail::to($chefBC->email)->send(new \App\Mail\DocumentResubmittedMail($nouvelleVersion, $dossier, $user));
                     Log::info('Email de correction envoyé au BC pour le dossier ' . $dossier->id);
                 } catch (\Exception $e) {
                     Log::error('Erreur envoi email correction: ' . $e->getMessage());
+                }
+            }
+
+            // Notifie aussi les collaborateurs du BC qui avaient analysé une version précédente
+            $collaborateurs = User::whereIn('id', \App\Models\DocumentAssignment::whereIn(
+                    'document_version_id',
+                    $dossier->versions()->where('id', '!=', $nouvelleVersion->id)->pluck('id')
+                )->pluck('controleur_id'))
+                ->when($chefBC, fn($q) => $q->where('id', '!=', $chefBC->id))
+                ->whereNotNull('email')
+                ->get();
+
+            foreach ($collaborateurs as $collaborateur) {
+                try {
+                    Mail::to($collaborateur->email)->send(new \App\Mail\DocumentResubmittedMail($nouvelleVersion, $dossier, $user));
+                    Log::info('Email de correction envoyé au collaborateur BC ' . $collaborateur->email);
+                } catch (\Exception $e) {
+                    Log::error('Erreur envoi email correction collaborateur: ' . $e->getMessage());
                 }
             }
 
@@ -601,7 +652,7 @@ class EntrepriseController extends Controller
     public function telechargerVersion($dossierId, $versionId)
     {
         $user = Auth::user();
-        $dossier = Dossier::where('cree_par', $user->id)->findOrFail($dossierId);
+        $dossier = Dossier::visiblePar($user)->findOrFail($dossierId);
         $version = $dossier->versions()->findOrFail($versionId);
 
         if (!$version->chemin_a_servir || !Storage::disk('public')->exists($version->chemin_a_servir)) {

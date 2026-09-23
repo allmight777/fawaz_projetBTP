@@ -29,8 +29,8 @@
             <p class="subtitle">Un document nécessite votre validation</p>
         </div>
         <div class="content">
-            <p>Bonjour Chef du Bureau de Contrôle,</p>
-            <p><strong>{{ $emetteur->full_name }}</strong> a soumis un document pour validation sur la plateforme <strong>FawazBTP</strong>.</p>
+          <p>L'entreprise <strong>{{ $emetteur->structure?->nom ?? 'N/A' }}</strong> vous transmet un document pour contrôle et validation.</p>
+<p style="font-size:14px; color:#555;">Transmis par : <strong>{{ $emetteur->full_name }}</strong></p>
 
             <div class="info-box">
                 <p style="margin:0;"><strong>Informations du document :</strong></p>

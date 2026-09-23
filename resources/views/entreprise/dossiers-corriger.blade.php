@@ -192,10 +192,38 @@
 </div>
 
 <!-- Observations du contrôleur -->
+<!-- Observations du Bureau de Contrôle -->
 <div class="card">
     <h3><i class="fas fa-comment-dots"></i> Observations du Bureau de Contrôle</h3>
 
-    @if($decision && $decision->commentaires)
+    @if(isset($observations) && $observations->count() > 0)
+        @foreach($observations as $obs)
+            @php
+                $auteur = $obs->auteur;
+                $affectation = $obs->assignment;
+                $statutLabel = $obs->type === 'non_conformite' ? 'Non-conformité' : 'Observation';
+                $couleur = $obs->type === 'non_conformite' ? '#dc2626' : '#92400e';
+                $bg = $obs->type === 'non_conformite' ? '#fee2e2' : '#fef3c7';
+                $border = $obs->type === 'non_conformite' ? '#fca5a5' : '#fde68a';
+            @endphp
+            <div class="observation-box" style="background:{{ $bg }}; border-color:{{ $border }};">
+                <div class="obs-header" style="color:{{ $couleur }};">
+                    <span>
+                        <i class="fas fa-user-check"></i>
+                        {{ $auteur->full_name ?? 'Collaborateur' }}
+                        @if($affectation && $affectation->specialite)
+                            — <em>{{ $affectation->specialite }}</em>
+                        @endif
+                        <span style="font-size:11px; font-weight:700; margin-left:6px; text-transform:uppercase;">
+                            [{{ $statutLabel }}]
+                        </span>
+                    </span>
+                    <span>{{ $obs->created_at->format('d/m/Y H:i') }}</span>
+                </div>
+                <p>{!! nl2br(e($obs->contenu)) !!}</p>
+            </div>
+        @endforeach
+    @elseif($decision && $decision->commentaires)
         <div class="observation-box">
             <div class="obs-header">
                 <span><i class="fas fa-user-check"></i> {{ $decision->validateur->full_name ?? 'Contrôleur' }}</span>
@@ -209,6 +237,48 @@
         </div>
     @endif
 </div>
+
+<!-- Vérifications des collaborateurs -->
+@if(isset($affectations) && $affectations->count() > 0)
+<div class="card">
+    <h3><i class="fas fa-list-check"></i> Vérifications effectuées par le Bureau de Contrôle</h3>
+
+    @foreach($affectations as $affectation)
+        @php
+            $versionAnalysee = $affectation->documentVersion;
+            $checklist = $versionAnalysee->checklistReponses ?? collect();
+        @endphp
+
+        <div style="margin-bottom:18px; padding:14px 16px; background:#f9fafb; border-radius:10px; border-left:3px solid {{ $affectation->statut === 'termine' ? '#047857' : '#f59e0b' }};">
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                <strong style="font-size:14px; color:#1a1a1a;">
+                    {{ $affectation->controleur->full_name ?? 'Collaborateur' }}
+                    @if($affectation->specialite)
+                        <span style="color:#888; font-weight:400;"> — {{ $affectation->specialite }}</span>
+                    @endif
+                </strong>
+                <span style="font-size:11px; padding:3px 10px; border-radius:12px; background:{{ $affectation->statut === 'termine' ? '#d1fae5' : '#fef3c7' }}; color:{{ $affectation->statut === 'termine' ? '#059669' : '#d97706' }}; font-weight:600;">
+                    {{ $affectation->statut === 'termine' ? 'Terminé' : 'En attente' }}
+                </span>
+            </div>
+
+            @if($checklist->count() > 0)
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    @foreach($checklist as $rep)
+                        <span style="font-size:11px; padding:3px 10px; border-radius:12px; background:{{ $rep->valeur ? '#d1fae5' : '#f3f4f6' }}; color:{{ $rep->valeur ? '#059669' : '#6b7280' }};">
+                            {{ $rep->valeur ? '✓' : '✗' }} {{ $rep->checklistItem->libelle ?? '' }}
+                        </span>
+                    @endforeach
+                </div>
+            @else
+                <p style="font-size:12px; color:#888; font-style:italic; margin:0;">
+                    Aucune vérification enregistrée.
+                </p>
+            @endif
+        </div>
+    @endforeach
+</div>
+@endif
 
 <!-- Formulaire de correction -->
 <div class="card">

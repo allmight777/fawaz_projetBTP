@@ -46,7 +46,15 @@ class DocumentStampingService
             return false;
         }
 
-        $version->update(['fichier_valide_chemin' => $cheminRelatif]);
+        // Scellement : empreinte SHA-256 du fichier tamponné, calculée sur le
+        // résultat final (donc invalidée par la moindre modification a posteriori).
+        $hash = hash_file('sha256', Storage::disk('public')->path($cheminRelatif));
+
+        $version->update([
+            'fichier_valide_chemin' => $cheminRelatif,
+            'fichier_valide_hash' => $hash,
+            'fichier_valide_scelle_le' => now(),
+        ]);
 
         return true;
     }
@@ -58,6 +66,7 @@ class DocumentStampingService
         try {
             $pdf = new Fpdi();
             $pageCount = $pdf->setSourceFile($sourcePath);
+            [$imgW, $imgH] = getimagesize($tamponPng);
 
             for ($page = 1; $page <= $pageCount; $page++) {
                 $templateId = $pdf->importPage($page);
@@ -66,14 +75,12 @@ class DocumentStampingService
                 $pdf->AddPage($taille['orientation'], [$taille['width'], $taille['height']]);
                 $pdf->useTemplate($templateId);
 
-                if ($page === 1) {
-                    [$imgW, $imgH] = getimagesize($tamponPng);
-                    $largeur = min(60, $taille['width'] * 0.4);
-                    $hauteur = $largeur * $imgH / $imgW;
-                    $x = $taille['width'] - $largeur - 15;
-                    $y = $taille['height'] - $hauteur - 15;
-                    $pdf->Image($tamponPng, max(5, $x), max(5, $y), $largeur, $hauteur, 'PNG');
-                }
+                // Tampon posé sur chaque page (plus seulement la première)
+                $largeur = min(60, $taille['width'] * 0.4);
+                $hauteur = $largeur * $imgH / $imgW;
+                $x = $taille['width'] - $largeur - 15;
+                $y = $taille['height'] - $hauteur - 15;
+                $pdf->Image($tamponPng, max(5, $x), max(5, $y), $largeur, $hauteur, 'PNG');
             }
 
             $relatif = 'dossiers/valides/' . date('Y/m') . '/' . pathinfo($version->fichier_chemin, PATHINFO_FILENAME) . '-valide.pdf';

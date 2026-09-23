@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Invitation à un événement</title>
+    <title>Document corrigé et resoumis</title>
 
     <style>
         body {
@@ -133,9 +133,8 @@
         .info-label {
             color: #64748b;
             display: inline-block;
-            width: 100px;
+            width: 130px;
             font-weight: 500;
-            vertical-align: top;
         }
 
         .info-value {
@@ -143,37 +142,37 @@
             font-weight: 600;
         }
 
-        /* ===== DESCRIPTION ===== */
+        /* ===== COMMENT BOX ===== */
         .comment-box {
             background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 100%);
             border-left: 4px solid #3b82f6;
             border-radius: 8px;
             padding: 16px 20px;
             margin: 22px 0 26px;
+        }
+
+        .comment-title {
+            display: flex;
+            align-items: center;
+            color: #1d4ed8;
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .comment-title::before {
+            content: "💬";
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .comment-text {
             color: #374151;
             font-size: 14px;
             line-height: 1.6;
-        }
-
-        /* ===== PARTICIPANTS ===== */
-        .participants-title {
-            color: #1e293b;
-            font-size: 13px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.4px;
-            margin-bottom: 10px;
-        }
-
-        .participant {
-            display: inline-block;
-            background: #eff6ff;
-            color: #1d4ed8;
-            border-radius: 50px;
-            padding: 5px 14px;
-            font-size: 13px;
-            font-weight: 600;
-            margin: 0 6px 8px 0;
+            font-style: italic;
         }
 
         /* ===== ACTION ===== */
@@ -193,7 +192,14 @@
             font-weight: 700;
             letter-spacing: 0.3px;
             box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+            transition: all 0.2s ease;
             border: none;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #0f172a 0%, #020617 100%);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+            transform: translateY(-1px);
         }
 
         .action-note {
@@ -277,11 +283,11 @@
             </div>
 
             <h1>
-                Vous êtes invité(e) à un événement
+                Document corrigé et resoumis
             </h1>
 
             <p class="subtitle">
-                Merci de confirmer votre présence
+                Une nouvelle version est disponible pour contrôle
             </p>
 
         </div>
@@ -290,58 +296,63 @@
         <div class="content">
 
             <p>
-                Bonjour <strong>{{ $destinataire->prenom ?? $destinataire->nom }}</strong>,
-            </p>
-
-            <p>
-                <strong>{{ $event->createur->full_name }}</strong> vous a inscrit(e) à l'événement suivant :
+                <strong>{{ $emetteur->full_name }}</strong>
+                ({{ $emetteur->structure?->nom ?? 'N/A' }}),
+                qui avait précédemment transmis ce document, l'a corrigé à la suite de votre refus et vous le resoumet pour contrôle.
             </p>
 
             <!-- INFO BOX -->
             <div class="info-box">
 
                 <div class="info-title">
-                    {{ $event->titre }}
+                    Informations du document
                 </div>
 
                 <div class="info-row">
-                    <span class="info-label">Date</span>
+                    <span class="info-label">Titre</span>
                     <span class="info-value">
-                        {{ $event->date_debut->translatedFormat('d/m/Y à H:i') }}
-                        @if($event->date_fin)
-                            &rarr; {{ $event->date_fin->translatedFormat('d/m/Y à H:i') }}
-                        @endif
+                        {{ $dossier->titre }}
                     </span>
                 </div>
 
-                @if($event->lieu)
                 <div class="info-row">
-                    <span class="info-label">Lieu</span>
+                    <span class="info-label">Type</span>
                     <span class="info-value">
-                        {{ $event->lieu }}
+                        {{ $dossier->documentType->nom ?? 'Non défini' }}
                     </span>
                 </div>
-                @endif
+
+                <div class="info-row">
+                    <span class="info-label">Nouvelle version</span>
+                    <span class="info-value">
+                        V{{ $version->numero_version }}
+                    </span>
+                </div>
+
+                <div class="info-row">
+                    <span class="info-label">Entreprise</span>
+                    <span class="info-value">
+                        {{ $emetteur->structure?->nom ?? 'Non définie' }}
+                    </span>
+                </div>
 
             </div>
 
-            <!-- DESCRIPTION -->
-            @if($event->description)
-                <div class="comment-box">
-                    {{ $event->description }}
-                </div>
-            @endif
+            <!-- COMMENT -->
+            @if($version->commentaire)
 
-            <!-- PARTICIPANTS -->
-            @if($autresParticipants->count() > 0)
-                <div class="participants-title">
-                    Autres personnes invitées
+                <div class="comment-box">
+
+                    <div class="comment-title">
+                        Message de l'émetteur
+                    </div>
+
+                    <div class="comment-text">
+                        {{ $version->commentaire }}
+                    </div>
+
                 </div>
-                <div>
-                    @foreach($autresParticipants as $participant)
-                        <span class="participant">{{ $participant->full_name }}</span>
-                    @endforeach
-                </div>
+
             @endif
 
             <!-- ACTION -->
@@ -352,7 +363,7 @@
                 </a>
 
                 <div class="action-note">
-                    Connectez-vous à votre espace pour confirmer votre présence.
+                    Connectez-vous pour consulter le document et vérifier les corrections apportées.
                 </div>
 
             </div>

@@ -412,6 +412,141 @@
     </table>
 </div>
 
+{{-- ===================================================================== --}}
+{{-- SECTION : Analyses des collaborateurs                                  --}}
+{{-- À insérer dans cheflot/document-recu-detail.blade.php,                 --}}
+{{-- entre la carte "Versions du document" et la carte "Décision"           --}}
+{{-- ===================================================================== --}}
+
+@php
+    // On regroupe toutes les affectations par collaborateur (controleur_id)
+    // et on ne garde que la plus récente par personne, en privilégiant
+    // celles qui ont déjà des observations ou qui sont terminées.
+    $toutesAffectations = $dossier->versions
+        ->flatMap(fn($v) => $v->affectations)
+        ->sortByDesc('created_at');
+
+    $affectationsParCollaborateur = $toutesAffectations
+        ->groupBy('controleur_id')
+        ->map(function ($groupe) {
+            // Priorité 1 : une affectation terminée
+            $terminee = $groupe->firstWhere('statut', 'termine');
+            if ($terminee) {
+                return $terminee;
+            }
+
+            // Priorité 2 : une affectation avec au moins une observation
+            $avecObs = $groupe->first(fn($a) => $a->observations->count() > 0);
+            if ($avecObs) {
+                return $avecObs;
+            }
+
+            // Sinon : la plus récente
+            return $groupe->sortByDesc('created_at')->first();
+        })
+        ->sortByDesc(fn($a) => $a->observations->count() > 0 ? 1 : 0)
+        ->values();
+@endphp
+
+@if($affectationsParCollaborateur->count() > 0)
+<div class="card">
+    <h3><i class="fas fa-user-check"></i> Analyses des collaborateurs</h3>
+
+    @foreach($affectationsParCollaborateur as $affectation)
+    @php
+        // Toutes les observations de ce collaborateur sur ce dossier
+        // (peu importe la version / l'affectation d'origine)
+        $obsDuCollaborateur = $toutesAffectations
+            ->where('controleur_id', $affectation->controleur_id)
+            ->flatMap(fn($a) => $a->observations)
+            ->sortByDesc('created_at')
+            ->values();
+
+        // La dernière version analysée par ce collaborateur (pour la checklist)
+        $versionAnalysee = $affectation->documentVersion;
+
+        $checklist = $versionAnalysee->checklistReponses ?? collect();
+
+        $statutLabel = $affectation->statut === 'termine'
+            ? 'Terminé'
+            : ($affectation->statut === 'en_cours' ? 'En cours' : 'En attente');
+        $statutBg = $affectation->statut === 'termine' ? '#d1fae5' : '#fef3c7';
+        $statutColor = $affectation->statut === 'termine' ? '#059669' : '#d97706';
+        $borderColor = $affectation->statut === 'termine' ? '#047857' : '#f59e0b';
+    @endphp
+
+    <div style="background:#f9fafb; border-radius:12px; padding:16px 20px; margin-bottom:14px; border-left:4px solid {{ $borderColor }};">
+
+        {{-- En-tête affectation --}}
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+            <div>
+                <strong style="color:#1a1a1a; font-size:14px;">
+                    {{ $affectation->controleur->full_name ?? 'Collaborateur inconnu' }}
+                </strong>
+                @if($affectation->specialite)
+                    <span style="color:#888; font-size:12px;"> — {{ $affectation->specialite }}</span>
+                @endif
+            </div>
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <span class="badge" style="background:{{ $statutBg }}; color:{{ $statutColor }};">
+                    {{ $statutLabel }}
+                </span>
+                @if($affectation->date_limite)
+                    <span style="font-size:11px; color:#888;">
+                        Échéance : {{ $affectation->date_limite->format('d/m/Y H:i') }}
+                    </span>
+                @endif
+            </div>
+        </div>
+
+        {{-- Observations du collaborateur (toutes versions confondues) --}}
+        @if($obsDuCollaborateur->count() > 0)
+            <div style="margin-top:12px;">
+                <p style="font-size:12px; font-weight:600; color:#064e3b; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px;">
+                    Observations ({{ $obsDuCollaborateur->count() }})
+                </p>
+                @foreach($obsDuCollaborateur as $obs)
+                <div style="background:white; border-radius:8px; padding:10px 14px; margin-bottom:8px; border-left:3px solid {{ $obs->type === 'non_conformite' ? '#dc2626' : '#047857' }};">
+                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:4px;">
+                        <span>
+                            <strong style="color:{{ $obs->type === 'non_conformite' ? '#dc2626' : '#047857' }};">
+                                {{ $obs->type === 'non_conformite' ? 'Non-conformité' : 'Observation' }}
+                            </strong>
+                        </span>
+                        <span>{{ $obs->created_at->format('d/m/Y H:i') }}</span>
+                    </div>
+                    <p style="font-size:13px; color:#333; margin:0; line-height:1.5;">
+                        {!! nl2br(e($obs->contenu)) !!}
+                    </p>
+                </div>
+                @endforeach
+            </div>
+        @else
+            <p style="font-size:12px; color:#888; margin-top:8px; font-style:italic;">
+                Aucune observation rédigée pour le moment.
+            </p>
+        @endif
+
+        {{-- Vérifications checklist --}}
+        @if($checklist->count() > 0)
+            <div style="margin-top:12px;">
+                <p style="font-size:12px; font-weight:600; color:#064e3b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px;">
+                    Vérifications
+                </p>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    @foreach($checklist as $rep)
+                        <span style="font-size:11px; padding:3px 10px; border-radius:12px; background:{{ $rep->valeur ? '#d1fae5' : '#f3f4f6' }}; color:{{ $rep->valeur ? '#059669' : '#6b7280' }};">
+                            {{ $rep->valeur ? '✓' : '✗' }} {{ $rep->checklistItem->libelle ?? '' }}
+                        </span>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+    @endforeach
+</div>
+@endif
+
 <!-- Décision -->
 <div class="card">
     <h3><i class="fas fa-gavel"></i> Décision</h3>
@@ -516,7 +651,7 @@
                         <input type="radio" name="controleur_id" value="${c.id}" required>
                         <div class="info">
                             <strong>${c.full_name}</strong>
-                            <span>${c.specialite || 'Aucune spécialité renseignée'}</span>
+                            <span>${c.fonction || 'Aucune fonction renseignée'}</span>
                         </div>
                     </label>
                 `).join('');

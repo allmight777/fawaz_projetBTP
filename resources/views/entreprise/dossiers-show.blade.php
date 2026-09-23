@@ -386,6 +386,11 @@
                             @else badge-brouillon @endif">
                             {{ $version->statut }}
                         </span>
+                        @if($version->fichier_valide_hash)
+                            <div title="Empreinte SHA-256 calculée sur le document tamponné, à la validation. Toute modification du fichier après coup change cette empreinte." style="font-size:10px; color:#9ca3af; margin-top:3px; font-family:monospace; cursor:help;">
+                                <i class="fas fa-fingerprint"></i> {{ substr($version->fichier_valide_hash, 0, 12) }}…
+                            </div>
+                        @endif
                     </td>
                     <td>{{ $version->importePar->full_name ?? 'Inconnu' }}</td>
                     <td style="font-size:13px; color:#888;">

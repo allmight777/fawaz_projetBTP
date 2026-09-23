@@ -6,13 +6,12 @@ use App\Models\DocumentVersion;
 use App\Models\Dossier;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 
-class DocumentForControlMail extends Mailable
+class DocumentResubmittedMail extends Mailable
 {
     use Queueable, SerializesModels;
 
@@ -28,21 +27,21 @@ class DocumentForControlMail extends Mailable
     }
 
     public function envelope(): Envelope
-{
-    return new Envelope(
-        subject: '📄 Demande de contrôle - ' . $this->dossier->titre,
-    );
-}
+    {
+        return new Envelope(
+            subject: '🔁 Document corrigé et resoumis (V' . $this->version->numero_version . ') - ' . $this->dossier->titre,
+        );
+    }
 
     public function content(): Content
     {
         return new Content(
-            view: 'emails.document-for-control',
+            view: 'emails.document-resubmitted',
             with: [
                 'version' => $this->version,
                 'dossier' => $this->dossier,
                 'emetteur' => $this->emetteur,
-                'url' => route('dossiers.show', $this->dossier->id),
+                'url' => route('login'),
             ]
         );
     }

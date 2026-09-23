@@ -46,28 +46,18 @@ return new class extends Migration
             $table->index('priorite');
         });
 
-        DB::statement('
-            CREATE OR REPLACE FUNCTION update_derniere_maj()
-            RETURNS TRIGGER AS $$
-            BEGIN
-                NEW.derniere_maj = NOW();
-                RETURN NEW;
-            END;
-            $$ LANGUAGE plpgsql;
-        ');
-
+        // Syntaxe MySQL pour le trigger
         DB::statement('
             CREATE TRIGGER update_demandes_derniere_maj
             BEFORE UPDATE ON demandes
             FOR EACH ROW
-            EXECUTE FUNCTION update_derniere_maj();
+            SET NEW.derniere_maj = NOW()
         ');
     }
 
     public function down(): void
     {
-        DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj ON demandes');
-        DB::statement('DROP FUNCTION IF EXISTS update_derniere_maj');
+        DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj');
         Schema::dropIfExists('demandes');
     }
 };
