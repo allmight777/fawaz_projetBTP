@@ -13,6 +13,11 @@ return new class extends Migration
         // les valeurs utilisées par l'application (dont 'archive') et reste compatible
         // MySQL comme PostgreSQL, sans syntaxe ALTER spécifique à un seul moteur.
         if (DB::getDriverName() === 'pgsql') {
+            // Le enum() d'origine crée une contrainte CHECK côté Postgres (ex:
+            // dossiers_statut_check) qui restreint toujours les valeurs même après
+            // un simple ALTER COLUMN TYPE : il faut la supprimer explicitement pour
+            // que la colonne devienne vraiment libre (ex: statut 'en_cours').
+            DB::statement("ALTER TABLE dossiers DROP CONSTRAINT IF EXISTS dossiers_statut_check");
             DB::statement("ALTER TABLE dossiers ALTER COLUMN statut TYPE VARCHAR(30)");
             DB::statement("ALTER TABLE dossiers ALTER COLUMN statut SET DEFAULT 'brouillon'");
         } else {

@@ -12,6 +12,14 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement("ALTER TABLE document_transmissions DROP CONSTRAINT IF EXISTS document_transmissions_mode_check");
+            DB::statement("ALTER TABLE document_transmissions ALTER COLUMN mode TYPE VARCHAR(20)");
+            DB::statement("ALTER TABLE document_transmissions ALTER COLUMN mode SET DEFAULT 'simple'");
+
+            return;
+        }
+
         // Modifier la colonne mode de ENUM à VARCHAR
         DB::statement("ALTER TABLE document_transmissions MODIFY mode VARCHAR(20) NOT NULL DEFAULT 'simple'");
     }
@@ -21,6 +29,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if (DB::getDriverName() === 'pgsql') {
+            return;
+        }
+
         // Revenir à l'ancien ENUM (si nécessaire)
         DB::statement("ALTER TABLE document_transmissions MODIFY mode ENUM('simple', 'diffusion_validation') NOT NULL DEFAULT 'simple'");
     }

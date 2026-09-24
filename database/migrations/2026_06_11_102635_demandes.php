@@ -46,18 +46,44 @@ return new class extends Migration
             $table->index('priorite');
         });
 
-        // Syntaxe MySQL pour le trigger
-        DB::statement('
-            CREATE TRIGGER update_demandes_derniere_maj
-            BEFORE UPDATE ON demandes
-            FOR EACH ROW
-            SET NEW.derniere_maj = NOW()
-        ');
+        if (DB::getDriverName() === 'pgsql') {
+            // Postgres n'a pas la syntaxe "SET NEW.col = ..." de MySQL : il faut une
+            // fonction de trigger en PL/pgSQL, exécutée par le trigger.
+            DB::statement('
+                CREATE OR REPLACE FUNCTION update_demandes_derniere_maj_fn()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    NEW.derniere_maj = NOW();
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql
+            ');
+            DB::statement('
+                CREATE TRIGGER update_demandes_derniere_maj
+                BEFORE UPDATE ON demandes
+                FOR EACH ROW
+                EXECUTE FUNCTION update_demandes_derniere_maj_fn()
+            ');
+        } else {
+            // Syntaxe MySQL pour le trigger
+            DB::statement('
+                CREATE TRIGGER update_demandes_derniere_maj
+                BEFORE UPDATE ON demandes
+                FOR EACH ROW
+                SET NEW.derniere_maj = NOW()
+            ');
+        }
     }
 
     public function down(): void
     {
-        DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj');
+        if (DB::getDriverName() === 'pgsql') {
+            DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj ON demandes');
+            DB::statement('DROP FUNCTION IF EXISTS update_demandes_derniere_maj_fn()');
+        } else {
+            DB::statement('DROP TRIGGER IF EXISTS update_demandes_derniere_maj');
+        }
+
         Schema::dropIfExists('demandes');
     }
 };
