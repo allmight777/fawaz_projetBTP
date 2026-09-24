@@ -96,6 +96,24 @@
             }
         }
 
+        /* Retour à l'accueil */
+        .back-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #666;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 18px;
+            transition: color 0.3s ease;
+            animation: fadeUp 0.5s ease-out both;
+        }
+
+        .back-home:hover {
+            color: #2563eb;
+        }
+
         /* Logo et titre */
         .logo-area {
             text-align: center;
@@ -569,6 +587,10 @@
 
     <div class="container">
         <div class="login-card">
+            <a href="{{ url('/') }}" class="back-home">
+                <i class="fas fa-arrow-left"></i> Retour à l'accueil
+            </a>
+
             <div class="logo-area">
                 <div class="logo-icon">
                     <i class="fas fa-hard-hat"></i>

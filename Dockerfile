@@ -1,3 +1,17 @@
+# --- Étape 1 : compilation des assets front (Vite) ---
+FROM node:20-alpine AS assets
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY resources resources
+COPY vite.config.js ./
+
+RUN npm run build
+
+# --- Étape 2 : application PHP ---
 FROM php:8.3-fpm-alpine
 
 RUN apk add --no-cache nginx supervisor curl zip unzip git libpq-dev \
@@ -10,6 +24,7 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 WORKDIR /var/www/html
 
 COPY . .
+COPY --from=assets /app/public/build public/build
 
 RUN composer install --no-dev --optimize-autoloader
 
