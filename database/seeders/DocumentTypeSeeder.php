@@ -78,5 +78,43 @@ class DocumentTypeSeeder extends Seeder
                 ['ordre' => $ordre, 'obligatoire' => true]
             );
         }
+
+        // Checklist pour les notes de calcul (utilisée en production)
+        $nca = DocumentType::where('code', 'NCA')->first();
+        $checklistNca = [
+            "L'ouvrage ou l'élément étudié est identifié",
+            'La discipline concernée est précisée ( Structur, hydrolique,...)',
+            'Indice de révision est indiqué',
+            "La date d'émision est renseignée",
+            'Le responsable ayant réalisé le calcul est identifié',
+            'Les documents de référence utilisés sont mensionnés',
+            'Les normes et règlements appliqués sont indiqués',
+            'Les hypoyhèse de calcul sont clairement définies',
+            'Les caractéristiques des matériaux utilisés sont précisées.',
+            'Les propriétés mécaniques des matériaux sont indiquées lorsque nécessaires.',
+            'Les charges et sollicitations prises en compte sont identifiées.',
+            'Les combinaisons de charges utilisées sont précisées.',
+            'Les conditions aux limites et hypothèses de modélisation sont présentées.',
+            'La méthode de calcul utilisée est expliquée.',
+            'Les formules et paramètres utilisés sont définis.',
+            'Les résultats intermédiaires nécessaires à la vérification sont présentés.',
+            'Les résultats finaux de dimensionnement sont clairement indiqués.',
+            'Les vérifications réglementaires applicables sont réalisées.',
+            "Les résultats obtenus sont cohérents avec les plans d'exécution associés.",
+            'Les dimensions retenues correspondent aux plans concernés.',
+            'Les conclusions de la note sont présentées.',
+            "Les limites ou conditions particulières d'application sont précisées.",
+            'Les annexes nécessaires sont jointes.',
+            'Les logiciels ou outils de calcul utilisés sont mentionnés lorsque nécessaires.',
+            "La note a fait l'objet d'une vérification interne.",
+            'La note est signée ou approuvée par le responsable technique.',
+            'Le format du document respecte les exigences du projet.',
+        ];
+        foreach ($checklistNca as $ordre => $libelle) {
+            ChecklistItem::firstOrCreate(
+                ['document_type_id' => $nca->id, 'libelle' => $libelle],
+                ['ordre' => $ordre + 1, 'obligatoire' => true]
+            );
+        }
     }
 }
