@@ -55,6 +55,7 @@ Route::delete('/dossiers/{id}', [EntrepriseController::class, 'destroyDossier'])
     Route::post('/dossiers', [EntrepriseController::class, 'storeDossier'])->name('dossiers.store');
     Route::get('/dossiers/{dossier}', [EntrepriseController::class, 'showDossier'])->name('dossiers.show');
 
+    Route::get('/archives', [EntrepriseController::class, 'archives'])->name('archives');
     Route::get('/documents-a-transferer', [EntrepriseController::class, 'documentsATransferer'])->name('documents.a-transferer');
 Route::post('/dossiers/{id}/transferer', [EntrepriseController::class, 'transfererDossier'])->name('dossiers.transferer');
 
@@ -83,6 +84,7 @@ Route::middleware(['auth', 'verified'])->prefix('bureau-controle')->name('bureau
 Route::middleware(['auth', 'verified'])->prefix('bureau-etudes')->name('bureau_etudes.')->group(function () {
     Route::get('/chef/dashboard', [BureauEtudesController::class, 'chefDashboard'])->name('chef.dashboard');
     Route::get('/collaborateur/dashboard', [BureauEtudesController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard');
+    Route::get('/archives', [BureauEtudesController::class, 'archives'])->name('chef.archives');
     Route::get('/projets', [BureauEtudesController::class, 'projets'])->name('projets');
     Route::get('/plans', [BureauEtudesController::class, 'plans'])->name('plans');
     Route::get('/notes-calcul', [BureauEtudesController::class, 'notesCalcul'])->name('notes_calcul');

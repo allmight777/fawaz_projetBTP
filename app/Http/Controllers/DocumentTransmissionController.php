@@ -68,6 +68,9 @@ class DocumentTransmissionController extends Controller
             abort(403, 'Ce document n\'est pas encore validé.');
         }
 
+        // La case « archiver après diffusion » est un archivage comme un autre : mêmes droits.
+        abort_if($request->boolean('archiver') && !$dossier->archivablePar(Auth::user()), 403, 'Seul le Bureau de Contrôle peut archiver un document.');
+
         $this->creerTransmission($dossier, 'diffusion_validation', $request);
 
         AuditLog::enregistrer('DIFFUSION', $dossier->id);

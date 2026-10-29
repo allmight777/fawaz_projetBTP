@@ -36,12 +36,14 @@
                     <i class="fas fa-folder-open"></i> Documents de mon lot
                 </a>
             </li>
+            @if(auth()->user()->isResponsableOrganisme())
             <li>
                 <a href="{{ route('maitre_ouvrage.archives') }}"
                    class="{{ request()->routeIs('maitre_ouvrage.archives') ? 'active' : '' }}">
                     <i class="fas fa-box-archive"></i> Documents archivés
                 </a>
             </li>
+            @endif
             <li>
                 <a href="{{ route('events.index') }}"
                    class="{{ request()->routeIs('events.*') ? 'active' : '' }}">

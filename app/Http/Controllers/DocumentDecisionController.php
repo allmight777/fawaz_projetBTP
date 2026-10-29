@@ -20,6 +20,7 @@ class DocumentDecisionController extends Controller
     // Écran de consolidation : toutes les observations des contrôleurs affectés
     public function create(DocumentVersion $documentVersion)
     {
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
         abort_unless($documentVersion->statut === 'en_analyse', 403, 'Cette version n\'est pas (ou plus) en analyse.');
 
         $documentVersion->load([
@@ -33,6 +34,7 @@ class DocumentDecisionController extends Controller
 
     public function store(StoreDocumentDecisionRequest $request, DocumentVersion $documentVersion)
     {
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
         abort_unless($documentVersion->statut === 'en_analyse', 403, 'Cette version n\'est pas (ou plus) en analyse.');
 
         $observationsRetenues = $request->observations_retenues ?? [];

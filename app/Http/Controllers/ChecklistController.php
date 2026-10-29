@@ -24,6 +24,7 @@ class ChecklistController extends Controller
     public function show(DocumentVersion $documentVersion)
     {
         abort_unless($documentVersion->dossier->cree_par === Auth::id(), 403, 'Seul l\'émetteur du dossier peut compléter cette checklist.');
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $documentVersion->load('dossier.documentType.checklistItems', 'checklistReponses');
 
@@ -36,6 +37,7 @@ class ChecklistController extends Controller
     public function store(Request $request, DocumentVersion $documentVersion)
     {
         abort_unless($documentVersion->dossier->cree_par === Auth::id(), 403, 'Seul l\'émetteur du dossier peut compléter cette checklist.');
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $items = $documentVersion->dossier->documentType->checklistItems;
 

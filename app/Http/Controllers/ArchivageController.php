@@ -14,6 +14,8 @@ class ArchivageController extends Controller
     // Liste des dossiers validés (archivables ou déjà archivés) pour le chef de mission
     public function index()
     {
+        abort_unless(Auth::user()->isChefLot(), 403, 'Réservé au Bureau de Contrôle.');
+
         $dossiers = Dossier::whereIn('statut', ['valide', 'archive'])
             ->with(['documentType', 'structureEmettrice', 'lot', 'creePar', 'versions'])
             ->latest()
@@ -24,13 +26,9 @@ class ArchivageController extends Controller
 
     public function archiver(Dossier $dossier)
     {
-        abort_unless(
-            Auth::user()->role === 'CHEF LOT' || $dossier->cree_par === Auth::id(),
-            403,
-            'Seul le Bureau de Contrôle ou l\'émetteur du dossier peut archiver ce document.'
-        );
+        abort_unless(Auth::user()->isChefLot(), 403, 'Seul le Bureau de Contrôle peut archiver un document.');
 
-        if (!in_array($dossier->statut, ['valide', 'transmis'], true)) {
+        if (!$dossier->archivablePar(Auth::user())) {
             return redirect()->back()->with('error', 'Seuls les documents validés ou transmis peuvent être archivés.');
         }
 

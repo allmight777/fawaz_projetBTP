@@ -12,6 +12,12 @@
     <div class="py-12">
         <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
 
+            @if($dossier->isArchived())
+                <div class="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-lg px-4 py-3">
+                    <strong>Document archivé</strong> — consultation et téléchargement uniquement : plus aucune modification ni suppression n'est possible, pour personne.
+                </div>
+            @endif
+
             <div class="bg-white shadow-sm sm:rounded-lg p-6">
                 <div class="flex flex-wrap items-center justify-between gap-4">
                     <div class="space-x-2">
@@ -26,16 +32,16 @@
                         @if($dossier->mode_traitement === 'simple' && $dossier->statut === 'transmis' && $dossier->transmissions->isEmpty())
                             <a href="{{ route('dossiers.transmettre.form', $dossier) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Transmettre</a>
                         @endif
-                        @if($user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'soumis')
+                        @if(!$dossier->isArchived() && $user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'soumis')
                             <a href="{{ route('cheflot.dossiers.affecter', $derniereVersion) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Affecter un contrôleur</a>
                         @endif
-                        @if($user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'en_analyse')
+                        @if(!$dossier->isArchived() && $user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'en_analyse')
                             <a href="{{ route('cheflot.dossiers.decision', $derniereVersion) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Consolidation / Décision</a>
                         @endif
                         @if($user->role === 'CHEF LOT' && $dossier->statut === 'valide')
                             <a href="{{ route('cheflot.dossiers.diffusion', $dossier) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Diffuser</a>
                         @endif
-                        @if(($user->role === 'CHEF LOT' || $dossier->cree_par === $user->id) && in_array($dossier->statut, ['valide', 'transmis']))
+                        @if($dossier->archivablePar($user))
                             <button
                                 x-data=""
                                 x-on:click.prevent="$dispatch('open-modal', 'confirm-archive-{{ $dossier->id }}')"
@@ -49,7 +55,7 @@
                                         Archiver ce document ?
                                     </h2>
                                     <p class="mt-2 text-sm text-gray-600">
-                                        Le document <strong>{{ $dossier->identifiant_affiche }}</strong> — « {{ $dossier->titre }} » sera figé : plus aucune modification ne sera possible (ni par l'émetteur, ni par le Bureau de Contrôle). Il restera consultable et téléchargeable. Toutes les parties prenantes (émetteur, contrôleurs, Maître d'Ouvrage du lot) seront prévenues par email.
+                                        Le document <strong>{{ $dossier->identifiant_affiche }}</strong> — « {{ $dossier->titre }} » sera figé : plus aucune modification ni suppression ne sera possible (ni par l'émetteur, ni par le Bureau de Contrôle, ni par personne). Il restera consultable et téléchargeable. Toutes les parties prenantes (émetteur, contrôleurs, Maître d'Ouvrage du lot) seront prévenues par email.
                                     </p>
 
                                     <div class="mt-6 flex justify-end gap-3">
@@ -92,7 +98,7 @@
                             @if($version->hasFichier())
                                 <a href="{{ route('dossiers.telecharger', [$dossier, $version]) }}" class="text-sm text-emerald-700 hover:underline">Télécharger le fichier</a>
                             @endif
-                            @if($version->statut === 'en_attente_checklist' && $dossier->cree_par === $user->id)
+                            @if(!$dossier->isArchived() && $version->statut === 'en_attente_checklist' && $dossier->cree_par === $user->id)
                                 <a href="{{ route('document-versions.checklist', $version) }}" class="block text-sm text-amber-700 hover:underline mt-1">Compléter la checklist</a>
                             @endif
 

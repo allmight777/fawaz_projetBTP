@@ -556,6 +556,11 @@
                                 <i class="fas fa-download"></i>
                             </a>
 
+                            @if($doc->dossier->isArchived())
+                                <span class="badge badge-brouillon" title="Document archivé : lecture seule">
+                                    <i class="fas fa-box-archive"></i> Archivé
+                                </span>
+                            @else
                             <form action="{{ route('entreprise.dossiers.destroy', $doc->dossier_id) }}" method="POST"
                                   onsubmit="return confirm('Supprimer définitivement ce document ?');" style="display:inline;">
                                 @csrf
@@ -564,6 +569,7 @@
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </form>
+                            @endif
                           
                         </div>
                     </td>

@@ -5,7 +5,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="shortcut icon" href="{{ asset('images/login.jpg') }}" type="image/x-icon">
-    <title> Connexion</title>
+    <title>Connexion</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -94,24 +94,6 @@
                 opacity: 1;
                 transform: scale(1) translateY(0);
             }
-        }
-
-        /* Retour à l'accueil */
-        .back-home {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: #666;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 18px;
-            transition: color 0.3s ease;
-            animation: fadeUp 0.5s ease-out both;
-        }
-
-        .back-home:hover {
-            color: #2563eb;
         }
 
         /* Logo et titre */
@@ -419,13 +401,72 @@
             margin-right: 8px;
         }
 
+        /* ===== FOOTER DE CARTE ===== */
+        .card-footer {
+            margin-top: 26px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            animation: fadeUp 0.5s ease-out 0.65s both;
+        }
+
+        /* Bouton retour retravaillé */
+        .back-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 16px 9px 9px;
+            background: #faf9f6;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 50px;
+            color: #333;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .back-home .back-arrow {
+            width: 26px;
+            height: 26px;
+            background: #ffffff;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #2563eb;
+            transition: all 0.3s ease;
+        }
+
+        .back-home:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+            transform: translateX(-3px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .back-home:hover .back-arrow {
+            background: #ffffff;
+            border-color: #ffffff;
+            color: #2563eb;
+            transform: translateX(-2px);
+        }
+
+        .back-home span {
+            white-space: nowrap;
+        }
+
         /* Lien d'inscription */
         .register-link {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 14px;
+            font-size: 13.5px;
             color: #666;
-            animation: fadeUp 0.5s ease-out 0.65s both;
         }
 
         .register-link a {
@@ -452,21 +493,6 @@
         }
 
         .register-link a:hover {
-            color: #1a4fc4;
-        }
-
-        /* Footer */
-        .card-footer {
-            text-align: center;
-            margin-top: 20px;
-            padding-top: 18px;
-            border-top: 1px solid #eee;
-            font-size: 13px;
-            color: #888;
-            animation: fadeUp 0.5s ease-out 0.75s both;
-        }
-
-        .card-footer i {
             color: #1a4fc4;
         }
 
@@ -522,12 +548,21 @@
                 animation-delay: 0.45s;
             }
 
-            .register-link {
+            .card-footer {
                 animation-delay: 0.55s;
             }
 
             .card-footer {
-                animation-delay: 0.65s;
+                flex-direction: column-reverse;
+                align-items: stretch;
+            }
+
+            .back-home {
+                justify-content: center;
+            }
+
+            .register-link {
+                text-align: center;
             }
         }
 
@@ -587,9 +622,6 @@
 
     <div class="container">
         <div class="login-card">
-            <a href="{{ url('/') }}" class="back-home">
-                <i class="fas fa-arrow-left"></i> Retour à l'accueil
-            </a>
 
             <div class="logo-area">
                 <div class="logo-icon">
@@ -657,10 +689,13 @@
                     <i class="fas fa-sign-in-alt"></i> Se connecter
                 </button>
 
-
-
+                <!-- Footer : retour + inscription sur la même ligne -->
                 <div class="card-footer">
-                    <!-- Lien d'inscription -->
+                    <a href="{{ url('/') }}" class="back-home">
+                        <span class="back-arrow"><i class="fas fa-arrow-left"></i></span>
+                        <span>Retour à l'accueil</span>
+                    </a>
+
                     @if (Route::has('register'))
                         <div class="register-link">
                             Pas encore de compte ? <a href="{{ route('register') }}">S'inscrire</a>

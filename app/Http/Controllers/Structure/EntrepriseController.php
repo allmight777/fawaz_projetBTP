@@ -126,6 +126,24 @@ class EntrepriseController extends Controller
         return view('entreprise.dossiers', compact('dossiers'));
     }
 
+    /**
+     * Documents archivés visibles par l'entreprise : consultation seule, réservée
+     * au chef. L'archivage lui-même reste l'apanage du Bureau de Contrôle.
+     */
+    public function archives()
+    {
+        $user = Auth::user();
+        abort_unless($user->isResponsableOrganisme(), 403, 'Accès réservé au chef d\'entreprise.');
+
+        $dossiers = Dossier::visiblePar($user)
+            ->where('statut', 'archive')
+            ->with(['documentType', 'structureEmettrice', 'lot'])
+            ->latest()
+            ->paginate(15);
+
+        return view('entreprise.archives', compact('dossiers'));
+    }
+
     public function createDossier()
     {
         $documentTypes = DocumentType::where('actif', true)->get();
@@ -446,6 +464,8 @@ class EntrepriseController extends Controller
         $user = Auth::user();
         $dossier = Dossier::where('cree_par', $user->id)->with('versions')->findOrFail($id);
 
+        abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être supprimé.');
+
         foreach ($dossier->versions as $version) {
             if ($version->fichier_chemin && Storage::disk('public')->exists($version->fichier_chemin)) {
                 Storage::disk('public')->delete($version->fichier_chemin);
@@ -700,6 +720,8 @@ class EntrepriseController extends Controller
             })
             ->where('necessite_transfert_chef', true)
             ->findOrFail($id);
+
+        abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $request->validate([
             'structure_cible' => 'required|in:bureau_controle,bureau_etudes,maitre_ouvrage',

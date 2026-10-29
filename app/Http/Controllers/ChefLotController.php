@@ -495,6 +495,8 @@ public function traiterDecision(Request $request, $id)
 
     $dossier = Dossier::transmisA($user)->findOrFail($id);
 
+    abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
+
     $request->validate([
         'decision' => 'required|in:valide,a_corriger',
         'commentaires' => 'nullable|string|max:2000',
@@ -669,6 +671,8 @@ private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $vers
         $user = Auth::user();
 
         $dossier = Dossier::transmisA($user)->findOrFail($id);
+
+        abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $request->validate([
             'controleur_id' => 'required|exists:users,id',

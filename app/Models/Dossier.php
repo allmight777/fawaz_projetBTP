@@ -25,6 +25,26 @@ class Dossier extends Model
     'necessite_transfert_chef',
     'structure_cible',
 ];
+
+    protected static function booted(): void
+    {
+        // Filet de sécurité : un dossier archivé est figé pour tout le monde (émetteur,
+        // Bureau de Contrôle, chefs...). Les contrôleurs HTTP refusent déjà l'action avec
+        // un message clair ; ceci garantit qu'aucun chemin oublié ne puisse le modifier,
+        // le désarchiver ou le supprimer.
+        static::updating(function (Dossier $dossier) {
+            abort_if(
+                $dossier->isDirty() && $dossier->getOriginal('statut') === 'archive',
+                403,
+                'Ce document est archivé et ne peut plus être modifié.'
+            );
+        });
+
+        static::deleting(function (Dossier $dossier) {
+            abort_if($dossier->getOriginal('statut') === 'archive', 403, 'Ce document est archivé et ne peut plus être supprimé.');
+        });
+    }
+
     /**
      * Génère un identifiant unique et immuable : {CODE_TYPE}-{DDMMYYYY},
      * avec un suffixe numérique en cas de collision (pas un numéro de version).
@@ -209,5 +229,15 @@ class Dossier extends Model
     public function isArchived(): bool
     {
         return $this->statut === 'archive';
+    }
+
+    /**
+     * Seul le responsable du Bureau de Contrôle archive, et seulement un document
+     * validé ou transmis. Les autres structures consultent les archives sans pouvoir
+     * en créer.
+     */
+    public function archivablePar(User $user): bool
+    {
+        return $user->isChefLot() && in_array($this->statut, ['valide', 'transmis'], true);
     }
 }

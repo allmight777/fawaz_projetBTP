@@ -15,6 +15,7 @@ class DocumentObservationController extends Controller
         if ($documentAssignment->controleur_id !== Auth::id()) {
             abort(403);
         }
+        abort_if($documentAssignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         DocumentObservation::create([
             'document_assignment_id' => $documentAssignment->id,
@@ -37,6 +38,8 @@ class DocumentObservationController extends Controller
     // Le responsable du Bureau de Contrôle retient (ou non) une observation lors de la consolidation
     public function toggleRetenue(DocumentObservation $documentObservation)
     {
+        abort_if($documentObservation->assignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
+
         $documentObservation->update(['retenue' => !$documentObservation->retenue]);
 
         return redirect()->back();

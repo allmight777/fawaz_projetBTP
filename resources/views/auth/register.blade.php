@@ -4,7 +4,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-      <link rel="shortcut icon" href="{{ asset('images/login.jpg') }}" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ asset('images/login.jpg') }}" type="image/x-icon">
     <title>Inscription</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -77,23 +77,6 @@
                 opacity: 1;
                 transform: scale(1) translateY(0);
             }
-        }
-
-        .back-home {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            color: #666;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 18px;
-            transition: color 0.3s ease;
-            animation: fadeUp 0.5s ease-out both;
-        }
-
-        .back-home:hover {
-            color: #2563eb;
         }
 
         .logo-area {
@@ -210,7 +193,6 @@
             animation: fadeUp 0.5s ease-out both;
         }
 
-        /* ANIMATIONS PAR GROUPE */
         .form-col-left .form-group:nth-child(1) { animation-delay: 0.25s; }
         .form-col-left .form-group:nth-child(2) { animation-delay: 0.35s; }
         .form-col-left .form-group:nth-child(3) { animation-delay: 0.45s; }
@@ -384,17 +366,75 @@
             margin-right: 8px;
         }
 
+        /* ===== FOOTER DE CARTE ===== */
         .card-footer {
-            text-align: center;
-            margin-top: 18px;
-            padding-top: 16px;
+            margin-top: 22px;
+            padding-top: 18px;
             border-top: 1px solid #eee;
-            font-size: 13px;
-            color: #888;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
             animation: fadeUp 0.5s ease-out both;
         }
 
-        .card-footer a {
+        /* Bouton retour retravaillé */
+        .back-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 16px 9px 9px;
+            background: #faf9f6;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 50px;
+            color: #333;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .back-home .back-arrow {
+            width: 26px;
+            height: 26px;
+            background: #ffffff;
+            border: 1.5px solid #e0e0e0;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            color: #2563eb;
+            transition: all 0.3s ease;
+        }
+
+        .back-home:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+            transform: translateX(-3px);
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .back-home:hover .back-arrow {
+            background: #ffffff;
+            border-color: #ffffff;
+            color: #2563eb;
+            transform: translateX(-2px);
+        }
+
+        .back-home span {
+            white-space: nowrap;
+        }
+
+        /* Lien connexion */
+        .login-link {
+            font-size: 13.5px;
+            color: #888;
+        }
+
+        .login-link a {
             color: #2563eb;
             text-decoration: none;
             font-weight: 600;
@@ -402,7 +442,7 @@
             position: relative;
         }
 
-        .card-footer a::after {
+        .login-link a::after {
             content: '';
             position: absolute;
             bottom: -2px;
@@ -413,11 +453,11 @@
             transition: width 0.3s ease;
         }
 
-        .card-footer a:hover::after {
+        .login-link a:hover::after {
             width: 100%;
         }
 
-        .card-footer a:hover {
+        .login-link a:hover {
             color: #1a4fc4;
         }
 
@@ -465,6 +505,19 @@
             .password-row .form-group:nth-child(2) { animation-delay: 1.15s; }
             .btn-login { animation-delay: 1.25s; }
             .card-footer { animation-delay: 1.35s; }
+
+            .card-footer {
+                flex-direction: column-reverse;
+                align-items: stretch;
+            }
+
+            .back-home {
+                justify-content: center;
+            }
+
+            .login-link {
+                text-align: center;
+            }
         }
 
         @media (max-width: 480px) {
@@ -518,7 +571,6 @@
             }
         }
 
-        /* Animation au survol des champs */
         .form-group:hover .input-wrapper input,
         .form-group:hover .input-wrapper select {
             border-color: #2563eb;
@@ -529,7 +581,6 @@
             transform: translateY(-50%) scale(1.1);
         }
 
-        /* Scrollbar personnalisée */
         ::-webkit-scrollbar {
             width: 6px;
         }
@@ -548,7 +599,6 @@
             background: #1a4fc4;
         }
 
-        /* Effet de particules sur le fond */
         .bg-image::after {
             content: '';
             position: absolute;
@@ -570,9 +620,6 @@
 
     <div class="container">
         <div class="login-card">
-            <a href="{{ url('/') }}" class="back-home">
-                <i class="fas fa-arrow-left"></i> Retour à l'accueil
-            </a>
 
             <div class="logo-area">
                 <div class="logo-icon">
@@ -743,8 +790,16 @@
                     <i class="fas fa-user-plus"></i> Créer mon compte
                 </button>
 
+                <!-- Footer : retour + connexion sur la même ligne -->
                 <div class="card-footer">
-                    Déjà inscrit ? <a href="{{ route('login') }}">Se connecter</a>
+                    <a href="{{ url('/') }}" class="back-home">
+                        <span class="back-arrow"><i class="fas fa-arrow-left"></i></span>
+                        <span>Retour à l'accueil</span>
+                    </a>
+
+                    <div class="login-link">
+                        Déjà inscrit ? <a href="{{ route('login') }}">Se connecter</a>
+                    </div>
                 </div>
             </form>
         </div>

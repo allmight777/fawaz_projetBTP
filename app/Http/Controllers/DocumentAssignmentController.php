@@ -19,6 +19,7 @@ class DocumentAssignmentController extends Controller
     // Formulaire d'affectation d'un ou plusieurs contrôleurs (responsable du Bureau de Contrôle)
     public function create(DocumentVersion $documentVersion)
     {
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
         abort_unless($documentVersion->statut === 'soumis', 403, 'Cette version ne peut plus être affectée (déjà en analyse, validée ou à corriger).');
 
         $documentVersion->load('dossier.documentType');
@@ -38,6 +39,7 @@ class DocumentAssignmentController extends Controller
 
     public function store(StoreDocumentAssignmentRequest $request, DocumentVersion $documentVersion)
     {
+        abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
         abort_unless($documentVersion->statut === 'soumis', 403, 'Cette version ne peut plus être affectée (déjà en analyse, validée ou à corriger).');
 
         foreach ($request->controleurs as $controleurId) {
@@ -98,6 +100,7 @@ class DocumentAssignmentController extends Controller
     if ($documentAssignment->controleur_id !== Auth::id()) {
         abort(403);
     }
+    abort_if($documentAssignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
     $request->validate([
         'reponses' => 'nullable|array',
@@ -127,6 +130,7 @@ public function marquerTermine(DocumentAssignment $documentAssignment)
     if ($documentAssignment->controleur_id !== Auth::id()) {
         abort(403);
     }
+    abort_if($documentAssignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
     $documentAssignment->update(['statut' => 'termine']);
 

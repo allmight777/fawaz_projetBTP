@@ -56,6 +56,12 @@
         <i class="fas fa-share-square"></i> Documents à transférer
     </a>
 </li>
+<li>
+    <a href="{{ route('entreprise.archives') }}"
+       class="{{ request()->routeIs('entreprise.archives') ? 'active' : '' }}">
+        <i class="fas fa-box-archive"></i> Documents archivés
+    </a>
+</li>
 @endif
     <li>
         <a href="{{ route('events.index') }}"

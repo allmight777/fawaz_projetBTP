@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Structure;
 
 use App\Http\Controllers\Controller;
 use App\Models\Demande;
+use App\Models\Dossier;
 use App\Models\Lot;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -245,16 +246,21 @@ class BureauEtudesController extends Controller
     }
 
     /**
-     * Archives
+     * Documents archivés visibles par le Bureau d'Études : consultation seule,
+     * réservée au chef. L'archivage reste l'apanage du Bureau de Contrôle.
      */
     public function archives()
     {
         $user = Auth::user();
-        $archives = Demande::where('statut', 'ARCHIVE')
-            ->with(['soumisPar', 'lot'])
-            ->orderBy('updated_at', 'desc')
-            ->paginate(30);
-        return view('bureau_etudes.chef.archives', compact('user', 'archives'));
+        abort_unless($user->isResponsableOrganisme(), 403, 'Accès réservé au chef du Bureau d\'Études.');
+
+        $dossiers = Dossier::visiblePar($user)
+            ->where('statut', 'archive')
+            ->with(['documentType', 'structureEmettrice', 'lot'])
+            ->latest()
+            ->paginate(15);
+
+        return view('bureau_etudes.chef.archives', compact('dossiers'));
     }
 
     /**

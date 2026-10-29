@@ -232,26 +232,34 @@
                     <i class="fas fa-tachometer-alt"></i><span>Dashboard</span>
                 </a>
             </li>
+            @if(Route::has('bureau_etudes.chef.demandes'))
             <li class="nav-item">
                 <a href="{{ route('bureau_etudes.chef.demandes') }}" class="nav-link {{ request()->routeIs('bureau_etudes.chef.demandes*') ? 'active' : '' }}">
                     <i class="fas fa-file-alt"></i><span>Demandes</span>
                 </a>
             </li>
+            @endif
+            @if(Route::has('bureau_etudes.chef.controleurs'))
             <li class="nav-item">
                 <a href="{{ route('bureau_etudes.chef.controleurs') }}" class="nav-link {{ request()->routeIs('bureau_etudes.chef.controleurs*') ? 'active' : '' }}">
                     <i class="fas fa-users"></i><span>Contrôleurs</span>
                 </a>
             </li>
+            @endif
+            @if(Route::has('bureau_etudes.chef.statistiques'))
             <li class="nav-item">
                 <a href="{{ route('bureau_etudes.chef.statistiques') }}" class="nav-link {{ request()->routeIs('bureau_etudes.chef.statistiques*') ? 'active' : '' }}">
                     <i class="fas fa-chart-line"></i><span>Statistiques</span>
                 </a>
             </li>
+            @endif
+            @if(Route::has('bureau_etudes.chef.historique'))
             <li class="nav-item">
                 <a href="{{ route('bureau_etudes.chef.historique') }}" class="nav-link {{ request()->routeIs('bureau_etudes.chef.historique*') ? 'active' : '' }}">
                     <i class="fas fa-history"></i><span>Historique</span>
                 </a>
             </li>
+            @endif
             <li class="nav-item">
                 <a href="{{ route('bureau_etudes.chef.archives') }}" class="nav-link {{ request()->routeIs('bureau_etudes.chef.archives*') ? 'active' : '' }}">
                     <i class="fas fa-box-archive"></i><span>Archives</span>

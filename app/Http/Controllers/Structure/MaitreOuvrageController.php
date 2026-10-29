@@ -114,10 +114,13 @@ class MaitreOuvrageController extends Controller
     }
 
     /**
-     * Documents archivés visibles par ce Maître d'Ouvrage : consultation seule.
+     * Documents archivés visibles par ce Maître d'Ouvrage : consultation seule,
+     * réservée au chef.
      */
     public function archives()
     {
+        abort_unless(Auth::user()->isResponsableOrganisme(), 403, 'Accès réservé au chef du Maître d\'Ouvrage.');
+
         $dossiers = $this->baseQuery()
             ->where('statut', 'archive')
             ->with(['documentType', 'structureEmettrice', 'lot'])

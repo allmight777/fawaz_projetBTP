@@ -238,9 +238,11 @@
 <div class="table-container">
     <div class="table-header">
         <h3><i class="fas fa-clock"></i> Demandes récentes</h3>
+        @if(Route::has('bureau_etudes.chef.demandes'))
         <a href="{{ route('bureau_etudes.chef.demandes') }}" class="btn-link">
             Voir toutes <i class="fas fa-arrow-right" style="font-size:12px;"></i>
         </a>
+        @endif
     </div>
     <div style="overflow-x:auto;">
         <table>
@@ -258,9 +260,13 @@
                 @forelse($demandesRecentes ?? [] as $demande)
                 <tr>
                     <td>
+                        @if(Route::has('bureau_etudes.chef.demandes.show'))
                         <a href="{{ route('bureau_etudes.chef.demandes.show', $demande->id) }}" class="btn-link" style="font-weight:600;">
                             {{ $demande->numero_demande }}
                         </a>
+                        @else
+                        <span style="font-weight:600;">{{ $demande->numero_demande }}</span>
+                        @endif
                     </td>
                     <td>{{ Str::limit($demande->titre_document ?? $demande->titre, 35) }}</td>
                     <td>{{ $demande->soumisPar->full_name ?? $demande->soumisPar->name ?? '-' }}</td>
