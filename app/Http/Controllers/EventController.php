@@ -138,7 +138,7 @@ class EventController extends Controller
         $user = Auth::user();
         abort_unless($this->peutVoir($event, $user), 403);
 
-        $event->load(['createur', 'structures', 'participants']);
+        $event->load(['createur', 'structures', 'participants.structure']);
 
         $monInvitation = $event->participants->firstWhere('id', $user->id);
 

@@ -1,16 +1,4 @@
-<style>
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 24px; }
-    .stat-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 4px solid #AD1457; }
-    .stat-card .stat-label { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
-    .stat-card .stat-number { font-size: 28px; font-weight: 800; color: #1a1a1a; }
-    .stat-card.blue { border-left-color: #1565C0; }
-    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
-    .chart-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .chart-card h4 { font-size: 15px; font-weight: 700; color: #1a1a1a; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-    .chart-card h4 i { color: #AD1457; }
-    .chart-container { position: relative; height: 260px; }
-    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
-</style>
+
 
 <div class="stats-grid">
     <div class="stat-card">
@@ -18,7 +6,7 @@
         <div class="stat-number">{{ $stats['validesCount'] }}</div>
     </div>
     <div class="stat-card blue">
-        <div class="stat-label">En analyse</div>
+        <div class="stat-label">En cours de visa</div>
         <div class="stat-number">{{ $stats['enAnalyseCount'] }}</div>
     </div>
     <div class="stat-card">
@@ -47,7 +35,7 @@
         </div>
     </div>
     <div class="chart-card">
-        <h4><i class="fas fa-chart-column"></i> Validés / À corriger / En analyse</h4>
+        <h4><i class="fas fa-chart-column"></i> Validés / À corriger / En cours de visa</h4>
         <div class="chart-container">
             <canvas id="moaGroupeChart"></canvas>
         </div>
@@ -116,7 +104,7 @@
             datasets: [
                 { label: 'Validés', data: [{{ $stats['validesCount'] }}], backgroundColor: '#059669', borderRadius: 6 },
                 { label: 'À corriger', data: [{{ $stats['aCorrigerCount'] }}], backgroundColor: '#dc2626', borderRadius: 6 },
-                { label: 'En analyse', data: [{{ $stats['enAnalyseCount'] }}], backgroundColor: '#2563eb', borderRadius: 6 },
+                { label: 'En cours de visa', data: [{{ $stats['enAnalyseCount'] }}], backgroundColor: '#2563eb', borderRadius: 6 },
             ],
         },
         options: {

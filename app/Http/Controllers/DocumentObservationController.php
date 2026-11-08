@@ -38,6 +38,9 @@ class DocumentObservationController extends Controller
     // Le responsable du Bureau de Contrôle retient (ou non) une observation lors de la consolidation
     public function toggleRetenue(DocumentObservation $documentObservation)
     {
+        $user = Auth::user();
+        abort_unless($user->estChefVisa(), 403);
+        abort_unless($documentObservation->assignment->controleur?->structureVisa() === $user->structureVisa(), 403, 'Cette observation appartient à une autre structure.');
         abort_if($documentObservation->assignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $documentObservation->update(['retenue' => !$documentObservation->retenue]);

@@ -4,122 +4,42 @@
 
 @section('content')
 <style>
-    .form-container {
-        background: white;
-        border-radius: 20px;
-        padding: 30px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        max-width: 600px;
-        margin: 0 auto;
-    }
-    .form-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin-bottom: 10px;
-    }
-    .form-subtitle {
-        color: #666;
-        margin-bottom: 30px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #eee;
-    }
-    .form-group {
-        margin-bottom: 20px;
-    }
-    label {
+label {
         display: block;
         margin-bottom: 8px;
         font-weight: 600;
         color: #333;
     }
-    label i {
-        color: #ff8c00;
+label i {
+        color: #8b1e3f;
         margin-right: 8px;
     }
-    .required {
+.required {
         color: #dc3545;
     }
-    input, textarea, select {
+input, textarea, select {
         width: 100%;
         padding: 12px 15px;
         border: 2px solid #e0e0e0;
         border-radius: 10px;
-        font-size: 14px;
+        font-size: var(--fs-m);
         transition: all 0.3s;
         font-family: inherit;
     }
-    input:focus, textarea:focus, select:focus {
+input:focus, textarea:focus, select:focus {
         outline: none;
-        border-color: #ff8c00;
-        box-shadow: 0 0 0 3px rgba(255,140,0,0.1);
+        border-color: #8b1e3f;
+        box-shadow: 0 0 0 3px rgba(139,30,63,0.1);
     }
-    textarea {
+textarea {
         resize: vertical;
         min-height: 100px;
-    }
-    .form-actions {
-        display: flex;
-        gap: 15px;
-        margin-top: 30px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-    }
-    .btn-submit {
-        background: linear-gradient(135deg, #ff8c00, #ff6b00);
-        color: white;
-        border: none;
-        padding: 12px 25px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-submit:hover {
-        transform: translateY(-2px);
-    }
-    .btn-back {
-        background: #6c757d;
-        color: white;
-        border: none;
-        padding: 12px 25px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-back:hover {
-        background: #5a6268;
-    }
-    .error {
-        color: #dc3545;
-        font-size: 12px;
-        margin-top: 5px;
-        display: flex;
-        align-items: center;
-        gap: 5px;
-    }
-    @media (max-width: 768px) {
-        .form-container {
-            padding: 20px;
-        }
-        .form-actions {
-            flex-direction: column;
-        }
     }
 </style>
 
 <div class="form-container">
     <div class="form-title">
         <i class="fas fa-edit"></i> Modifier le lot
-    </div>
-    <div class="form-subtitle">
-        Modifiez les informations du lot
     </div>
 
     <form method="POST" action="{{ route('admin.lots.update', $lot) }}">

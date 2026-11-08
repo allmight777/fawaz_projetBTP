@@ -18,7 +18,16 @@ class DocumentTypeController extends Controller
             ->orderBy('nom')
             ->get();
 
-        return view('admin.document-types.index', compact('documentTypes'));
+        // Regroupés par catégorie, dans l'ordre des catégories connues (les inconnues à la suite).
+        $categories = DocumentType::categories();
+        $ordre = array_keys($categories);
+        $groupes = $documentTypes->groupBy('categorie')->sortBy(function ($types, $cle) use ($ordre) {
+            $rang = array_search($cle, $ordre, true);
+
+            return $rang === false ? 999 : $rang;
+        });
+
+        return view('admin.document-types.index', compact('documentTypes', 'groupes', 'categories'));
     }
 
     /**
@@ -26,13 +35,7 @@ class DocumentTypeController extends Controller
      */
     public function create()
     {
-        $categories = [
-            'etude_execution' => 'Étude d\'exécution',
-            'gestion_projet' => 'Gestion de projet',
-            'assurance_qualite' => 'Assurance qualité',
-            'environnemental_social' => 'Environnemental et social',
-            'bc_document' => 'Documents Bureau de Contrôle',
-        ];
+        $categories = DocumentType::categories();
 
         $modes = [
             'simple' => 'Informatif (simple)',
@@ -50,7 +53,7 @@ class DocumentTypeController extends Controller
         $validator = Validator::make($request->all(), [
             'code' => 'required|string|max:50|unique:document_types',
             'nom' => 'required|string|max:255',
-            'categorie' => 'required|in:etude_execution,gestion_projet,assurance_qualite,environnemental_social,bc_document',
+            'categorie' => 'required|in:' . implode(',', array_keys(DocumentType::categories())),
             'mode_traitement' => 'required|in:simple,validation',
             'actif' => 'boolean',
         ]);
@@ -80,13 +83,7 @@ class DocumentTypeController extends Controller
     {
         $documentType = DocumentType::with('checklistItems')->findOrFail($id);
 
-        $categories = [
-            'etude_execution' => 'Étude d\'exécution',
-            'gestion_projet' => 'Gestion de projet',
-            'assurance_qualite' => 'Assurance qualité',
-            'environnemental_social' => 'Environnemental et social',
-            'bc_document' => 'Documents Bureau de Contrôle',
-        ];
+        $categories = DocumentType::categories();
 
         $modes = [
             'simple' => 'Informatif (simple)',
@@ -106,7 +103,7 @@ class DocumentTypeController extends Controller
         $validator = Validator::make($request->all(), [
             'code' => 'required|string|max:50|unique:document_types,code,' . $id,
             'nom' => 'required|string|max:255',
-            'categorie' => 'required|in:etude_execution,gestion_projet,assurance_qualite,environnemental_social,bc_document',
+            'categorie' => 'required|in:' . implode(',', array_keys(DocumentType::categories())),
             'mode_traitement' => 'required|in:simple,validation',
             'actif' => 'boolean',
         ]);

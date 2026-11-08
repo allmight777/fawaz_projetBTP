@@ -3,51 +3,33 @@
 <head>
     <meta charset="utf-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Helvetica', sans-serif; color: #333; font-size: 12px; }
-        .header {
+.header {
             background: #047857;
             color: white;
             padding: 20px 24px;
             margin-bottom: 24px;
         }
-        .header h1 { font-size: 20px; margin-bottom: 4px; }
-        .header p { font-size: 12px; opacity: 0.9; }
-        .container { padding: 0 24px; }
-        .info-box {
-            background: #f0fdf4;
-            border: 1px solid #bbf7d0;
-            border-radius: 6px;
-            padding: 12px 16px;
-            margin-bottom: 20px;
-        }
-        .info-box p { margin-bottom: 4px; }
-        .info-box strong { color: #064e3b; }
-
-        .stats-row { display: table; width: 100%; margin-bottom: 24px; }
-        .stat-box {
+.header h1 { font-size: 20px; margin-bottom: 4px; }
+.header p { font-size: 12px; opacity: 0.9; }
+.container { padding: 0 24px; }
+.stats-row { display: table; width: 100%; margin-bottom: 24px; }
+.stat-box {
             display: table-cell;
             width: 20%;
             text-align: center;
             padding: 12px 8px;
             border: 1px solid #e5e7eb;
         }
-        .stat-box .num { font-size: 20px; font-weight: bold; color: #064e3b; }
-        .stat-box .label { font-size: 10px; color: #6b7280; text-transform: uppercase; margin-top: 4px; }
-
-        h2 {
+.stat-box .num { font-size: 20px; font-weight: bold; color: #064e3b; }
+.stat-box .label { font-size: 10px; color: #6b7280; text-transform: uppercase; margin-top: 4px; }
+h2 {
             font-size: 14px;
             color: #064e3b;
             margin: 20px 0 10px;
             padding-bottom: 6px;
             border-bottom: 2px solid #047857;
         }
-
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th { text-align: left; padding: 8px 10px; background: #f0fdf4; color: #064e3b; font-size: 11px; border: 1px solid #e5e7eb; }
-        td { padding: 8px 10px; font-size: 11px; border: 1px solid #e5e7eb; }
-
-        .footer {
+.footer {
             margin-top: 30px;
             padding-top: 12px;
             border-top: 1px solid #e5e7eb;
@@ -55,7 +37,7 @@
             color: #888;
             text-align: center;
         }
-    </style>
+</style>
 </head>
 <body>
     <div class="header">

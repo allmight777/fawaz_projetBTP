@@ -1,24 +1,19 @@
-@extends('layouts.cheflot')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Diffusion post-validation')
 
 @section('content')
 <style>
-    .form-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 700px; margin: 0 auto; }
-    .form-title { font-size: 24px; font-weight: 700; color: #064e3b; margin-bottom: 10px; }
-    .form-subtitle { color: #6b7280; margin-bottom: 30px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; }
-    .form-group { margin-bottom: 20px; }
-    label { display: block; margin-bottom: 8px; font-weight: 600; color: #374151; }
-    .checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
-    textarea { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: inherit; }
-    .btn-submit { background: linear-gradient(135deg, #047857, #065f46); color: white; border: none; padding: 12px 25px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+label { display: block; margin-bottom: 8px; font-weight: 600; color: #374151; }
+.checkbox-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+textarea { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: var(--fs-m); font-family: inherit; }
 </style>
 
 <div class="form-container">
     <div class="form-title"><i class="fas fa-share-nodes"></i> Diffusion post-validation</div>
     <div class="form-subtitle">{{ $dossier->identifiant }} — {{ $dossier->titre }} — document validé, aucune diffusion automatique</div>
 
-    <form method="POST" action="{{ route('cheflot.dossiers.diffusion.store', $dossier) }}">
+    <form method="POST" action="{{ sroute('cheflot.dossiers.diffusion.store', $dossier) }}">
         @csrf
 
         <div class="form-group">
@@ -42,7 +37,7 @@
                 @endforeach
             </div>
         </div>
-        @error('destinataires') <span style="color:#dc2626; font-size:12px;">{{ $message }}</span> @enderror
+        @error('destinataires') <span style="color:#dc2626; font-size: var(--fs-s);">{{ $message }}</span> @enderror
 
         <div class="form-group">
             <label>Commentaire</label>

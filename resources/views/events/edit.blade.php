@@ -4,29 +4,17 @@
 
 @section('content')
 <style>
-    .form-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 720px; margin: 0 auto; }
-    .form-title { font-size: 22px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; }
-    .form-title i { color: var(--accent, #2563eb); margin-right: 8px; }
-    .form-subtitle { color: #6b7280; margin-bottom: 26px; padding-bottom: 15px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
-    .form-group { margin-bottom: 18px; }
-    .form-row { display: flex; gap: 16px; }
-    .form-row .form-group { flex: 1; }
-    label { display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: 13px; }
-    input[type="text"], input[type="datetime-local"], textarea {
-        width: 100%; padding: 11px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 14px; font-family: inherit;
+label { display: block; margin-bottom: 6px; font-weight: 600; color: #374151; font-size: var(--fs-m); }
+input[type="text"], input[type="datetime-local"], textarea {
+        width: 100%; padding: 11px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: var(--fs-m); font-family: inherit;
     }
-    input:focus, textarea:focus { outline: none; border-color: var(--accent, #2563eb); }
-    textarea { min-height: 90px; resize: vertical; }
-    .error-text { color: #dc2626; font-size: 12px; margin-top: 6px; }
-    .btn-submit {
-        background: linear-gradient(135deg, var(--accent, #2563eb), var(--accent-dark, #1a4fc4));
-        color: white; border: none; padding: 12px 26px; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px;
-    }
+input:focus, textarea:focus { outline: none; border-color: var(--accent, #2563eb); }
+textarea { min-height: 90px; resize: vertical; }
+.error-text { color: #dc2626; font-size: var(--fs-s); margin-top: 6px; }
 </style>
 
 <div class="form-container">
     <div class="form-title"><i class="fas fa-pen"></i> Modifier l'événement</div>
-    <div class="form-subtitle">La liste des invités ne peut pas être modifiée ici — supprimez et recréez l'événement si besoin.</div>
 
     <form method="POST" action="{{ route('events.update', $event) }}">
         @csrf

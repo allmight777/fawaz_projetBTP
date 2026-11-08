@@ -1,25 +1,11 @@
-@extends('layouts.cheflot')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Équipe & statistiques')
 
 @section('content')
 <style>
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .stat-card { background: white; border-radius: 20px; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s; }
-    .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(4,120,87,0.15); }
-    .stat-info h3 { font-size: 14px; color: #666; margin-bottom: 8px; }
-    .stat-number { font-size: 28px; font-weight: 800; color: #064e3b; }
-    .stat-icon { width: 50px; height: 50px; background: rgba(4,120,87,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #047857; }
-
-    .charts-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 30px; }
-    .chart-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .chart-card h4 { font-size: 16px; font-weight: 700; color: #064e3b; margin-bottom: 15px; }
-    .chart-container { position: relative; height: 280px; }
-    .chart-container.small { height: 300px; max-width: 300px; margin: 0 auto; }
-    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
-
-    .top-card {
-        background: linear-gradient(135deg, #047857, #064e3b);
+.top-card {
+        background: linear-gradient(135deg, var(--accent), var(--accent-d));
         border-radius: 20px;
         padding: 22px;
         color: white;
@@ -28,35 +14,29 @@
         gap: 16px;
         margin-bottom: 30px;
     }
-    .top-card .avatar-big {
+.top-card .avatar-big {
         width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.2);
         display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 22px; flex-shrink: 0;
     }
-    .top-card .top-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
-    .top-card .top-name { font-size: 18px; font-weight: 700; margin: 2px 0; }
-    .top-card .top-detail { font-size: 13px; opacity: 0.9; }
-
-    .controleurs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
-    .controleur-card { background: white; border-radius: 20px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s; }
-    .controleur-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px rgba(4,120,87,0.12); }
-    .controleur-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
-    .avatar {
-        width: 46px; height: 46px; border-radius: 50%; background: #047857; color: white;
+.top-card .top-label { font-size: var(--fs-s); opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+.top-card .top-name { font-size: 18px; font-weight: 700; margin: 2px 0; }
+.top-card .top-detail { font-size: var(--fs-m); opacity: 0.9; }
+.controleurs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; }
+.controleur-card { background: white; border-radius: 20px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); transition: transform 0.3s; }
+.controleur-card:hover { transform: translateY(-4px); box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 12%, transparent); }
+.controleur-header { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.avatar {
+        width: 46px; height: 46px; border-radius: 50%; background: var(--accent); color: white;
         display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; flex-shrink: 0;
     }
-    .controleur-name { font-weight: 700; color: #064e3b; font-size: 15px; }
-    .controleur-specialite { font-size: 12px; color: #6b7280; margin-top: 2px; }
-    .badge-actif { background: #d1fae5; color: #059669; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: auto; }
-    .badge-inactif { background: #fee2e2; color: #dc2626; padding: 3px 10px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: auto; }
-
-    .mini-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 14px; }
-    .mini-stat .num { font-size: 18px; font-weight: 800; color: #064e3b; }
-    .mini-stat .label { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; }
-    .mini-stat.attente .num { color: #d97706; }
-    .mini-stat.cours .num { color: #2563eb; }
-    .mini-stat.termine .num { color: #059669; }
-
-    .empty-state { background: white; border-radius: 20px; padding: 50px; text-align: center; color: #6b7280; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+.controleur-name { font-weight: 700; color: var(--accent-d); font-size: var(--fs-m); }
+.controleur-specialite { font-size: var(--fs-s); color: #6b7280; margin-top: 2px; }
+.mini-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 14px; }
+.mini-stat .num { font-size: 18px; font-weight: 800; color: var(--accent-d); }
+.mini-stat .label { font-size: var(--fs-s); color: #6b7280; text-transform: uppercase; letter-spacing: 0.3px; }
+.mini-stat.attente .num { color: #d97706; }
+.mini-stat.cours .num { color: #2563eb; }
+.mini-stat.termine .num { color: var(--accent-d); }
 </style>
 
 @php
@@ -147,7 +127,9 @@
     </div>
 @endif
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#047857';
     const collabCtx = document.getElementById('collabChart').getContext('2d');
     new Chart(collabCtx, {
         type: 'bar',
@@ -157,7 +139,7 @@
                 {
                     label: 'Terminés',
                     data: {!! json_encode($chartDataTermine) !!},
-                    backgroundColor: '#059669',
+                    backgroundColor: accent,
                     borderRadius: 6,
                 },
                 {
@@ -183,7 +165,7 @@
             labels: {!! json_encode(array_keys($repartitionGlobale)) !!},
             datasets: [{
                 data: {!! json_encode(array_values($repartitionGlobale)) !!},
-                backgroundColor: ['#d97706', '#2563eb', '#059669']
+                backgroundColor: ['#d97706', '#2563eb', accent]
             }]
         },
         options: {

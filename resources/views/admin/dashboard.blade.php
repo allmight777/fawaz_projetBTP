@@ -4,75 +4,12 @@
 
 @section('content')
 <style>
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 25px;
-        margin-bottom: 30px;
-    }
-
-    .stat-card {
-        background: white;
-        border-radius: 20px;
-        padding: 25px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .stat-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 30px rgba(255,140,0,0.15);
-    }
-
-    .stat-info h3 {
-        font-size: 14px;
-        color: #666;
-        font-weight: 500;
-        margin-bottom: 8px;
-    }
-
-    .stat-number {
-        font-size: 36px;
-        font-weight: 800;
-        color: #1a1a1a;
-    }
-
-    .stat-icon {
-        width: 60px;
-        height: 60px;
-        background: rgba(255,140,0,0.1);
-        border-radius: 15px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 28px;
-        color: #ff8c00;
-    }
-
-    .stat-change {
-        font-size: 12px;
+.stat-change {
+        font-size: var(--fs-s);
         color: #4caf50;
         margin-top: 8px;
     }
-
-    .charts-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 25px;
-        margin-bottom: 30px;
-    }
-
-    .chart-card {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-    }
-
-    .chart-header {
+.chart-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -80,100 +17,23 @@
         padding-bottom: 15px;
         border-bottom: 2px solid #f0f0f0;
     }
-
-    .chart-header h4 {
+.chart-header h4 {
         font-size: 18px;
         font-weight: 700;
         color: #1a1a1a;
         margin: 0;
     }
-
-    .chart-header select {
+.chart-header select {
         background: #f5f5f5;
         border: 1px solid #e0e0e0;
         border-radius: 8px;
         padding: 5px 10px;
-        font-size: 14px;
+        font-size: var(--fs-m);
         cursor: pointer;
     }
-
-    .table-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 5px 20px rgba(0,0,0,0.05);
-    }
-
-    .table-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-    }
-
-    .table-header h3 {
-        font-size: 18px;
-        font-weight: 700;
-        color: #1a1a1a;
-    }
-
-    .btn-primary {
-        background: linear-gradient(135deg, #ff8c00, #ff6b00);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    th {
-        text-align: left;
-        padding: 15px;
-        background: #f8f9fa;
-        color: #555;
-        font-weight: 600;
-        font-size: 13px;
-    }
-
-    td {
-        padding: 15px;
-        border-bottom: 1px solid #eee;
-        color: #333;
-    }
-
-    .badge {
-        padding: 5px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-
-    .badge-admin { background: rgba(255,68,68,0.1); color: #ff4444; }
-    .badge-chef { background: rgba(255,140,0,0.1); color: #ff8c00; }
-    .badge-controleur { background: rgba(52,211,153,0.1); color: #34d399; }
-    .badge-actif { background: rgba(52,211,153,0.1); color: #34d399; }
-    .badge-inactif { background: rgba(239,68,68,0.1); color: #ef4444; }
-
-    .pagination-wrapper {
-        margin-top: 20px;
-        text-align: center;
-    }
-
-    @media (max-width: 992px) {
-        .charts-grid {
-            grid-template-columns: 1fr;
-        }
-    }
+.badge-admin { background: rgba(255,68,68,0.1); color: #ff4444; }
+.badge-chef { background: rgba(139,30,63,0.1); color: #8b1e3f; }
+.badge-controleur { background: rgba(52,211,153,0.1); color: #34d399; }
 </style>
 
 <!-- Stats Cards -->
@@ -206,7 +66,7 @@
 
     <div class="stat-card">
         <div class="stat-info">
-            <h3>Contrôleurs</h3>
+            <h3>Collaborateurs de visa</h3>
             <div class="stat-number">{{ $totalControleurs }}</div>
             <div class="stat-change">
                 <i class="fas fa-hard-hat"></i> Sur les lots
@@ -280,7 +140,7 @@
 <div class="charts-grid">
     <div class="chart-card">
         <div class="chart-header">
-            <h4><i class="fas fa-chart-bar"></i> Contrôleurs par lot</h4>
+            <h4><i class="fas fa-chart-bar"></i> Collaborateurs par lot</h4>
         </div>
         <div style="position: relative; height: 280px;">
             <canvas id="lotBarChart"></canvas>
@@ -307,7 +167,7 @@
     </div>
 
     <div style="overflow-x: auto;">
-        <table>
+        <table data-no-filter>
             <thead>
                 <tr>
                     <th>Nom</th>
@@ -338,7 +198,7 @@
                         </span>
                     </td>
                     <td>
-                        <a href="{{ route('admin.users.edit', $user) }}" style="color: #ff8c00; margin-right: 10px;">
+                        <a href="{{ route('admin.users.edit', $user) }}" style="color: #8b1e3f; margin-right: 10px;">
                             <i class="fas fa-edit"></i>
                         </a>
                         <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display:inline">
@@ -386,7 +246,7 @@
                     datasets: [{
                         label: "Nombre d'utilisateurs",
                         data: roleData,
-                        backgroundColor: ['#ff4444', '#ff8c00', '#34d399'],
+                        backgroundColor: ['#ff4444', '#8b1e3f', '#34d399'],
                         borderRadius: 10
                     }]
                 },
@@ -433,12 +293,12 @@
                     datasets: [{
                         label: 'Inscriptions',
                         data: monthlyData,
-                        borderColor: '#ff8c00',
-                        backgroundColor: 'rgba(255,140,0,0.1)',
+                        borderColor: '#8b1e3f',
+                        backgroundColor: 'rgba(139,30,63,0.1)',
                         tension: 0.4,
                         fill: true,
                         borderWidth: 3,
-                        pointBackgroundColor: '#ff8c00',
+                        pointBackgroundColor: '#8b1e3f',
                         pointRadius: 4
                     }]
                 },
@@ -455,7 +315,7 @@
         // Graphique 4: Camembert lots
         const lotPieCtx = document.getElementById('lotPieChart');
         if (lotPieCtx && lotPieLabels.length > 0) {
-            const lotColors = ['#ff8c00', '#34d399', '#4caf50', '#2196f3', '#9c27b0', '#f44336'];
+            const lotColors = ['#8b1e3f', '#34d399', '#4caf50', '#2196f3', '#9c27b0', '#f44336'];
             new Chart(lotPieCtx.getContext('2d'), {
                 type: 'pie',
                 data: {
@@ -484,9 +344,9 @@
                 data: {
                     labels: lotLabels,
                     datasets: [{
-                        label: 'Nombre de contrôleurs',
+                        label: 'Nombre de collaborateurs',
                         data: lotData,
-                        backgroundColor: '#ff8c00',
+                        backgroundColor: '#8b1e3f',
                         borderRadius: 10
                     }]
                 },

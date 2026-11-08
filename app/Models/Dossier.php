@@ -92,6 +92,42 @@ class Dossier extends Model
         return $this->hasMany(DocumentTransmission::class);
     }
 
+    /**
+     * Un document déjà validé (ou visé) par quelqu'un n'est plus supprimable : il engage la structure qui a visé.
+     * Vrai dès qu'une version est validée, qu'une structure a visé, ou que le dossier est validé/archivé.
+     */
+    public function aEteVise(): bool
+    {
+        return in_array($this->statut, ['valide', 'archive'], true)
+            || $this->versions()->where('statut', 'valide')->exists()
+            || \App\Models\DocumentVisa::where('dossier_id', $this->id)->where('type', 'validation')->exists()
+            || $this->circuitVisas()->where('statut', 'valide')->exists();
+    }
+
+    public function estSupprimable(): bool
+    {
+        return !$this->aEteVise();
+    }
+
+    public function circuitVisas(): HasMany
+    {
+        return $this->hasMany(CircuitVisa::class);
+    }
+
+    /** Structures souhaitées par l'émetteur (stockées sous forme de sigles dans structure_cible) : ['bureau_controle', ...]. */
+    public function getStructuresSouhaiteesAttribute(): array
+    {
+        $sigles = array_filter(explode(',', (string) $this->structure_cible));
+
+        return array_values(array_filter(\App\Support\Espaces::TYPES_VISA, fn ($type) => in_array(\App\Support\Espaces::sigle($type), $sigles, true)));
+    }
+
+    /** Visas par structure pour la colonne « Visas » : [['sigle' => 'BC', 'statut' => 'valide'], ...]. */
+    public function getVisasResumeAttribute(): array
+    {
+        return \App\Services\CircuitVisaService::resume($this);
+    }
+
 
     public function getLatestVersion()
     {
@@ -121,18 +157,28 @@ class Dossier extends Model
 
     public function getStatutLabelAttribute(): string
     {
+        if ($this->necessite_transfert_chef && $this->statut === 'en_cours') {
+            return 'À transférer';
+        }
+
         return match ($this->statut) {
             'brouillon' => 'Brouillon',
             'soumis' => 'Soumis',
             'transmis' => 'Transmis',
             'en_analyse' => 'En analyse',
-            'en_cours' => 'En cours',
+            'en_cours' => 'En attente de visa',
             'valide' => 'Validé',
             'a_corriger' => 'À corriger',
             'rejete' => 'Rejeté',
             'archive' => 'Archivé',
             default => 'Inconnu',
         };
+    }
+
+    // Alias utilisé par les vues Tailwind (dossiers/index, dossiers/show)
+    public function getLibelleStatutAttribute(): string
+    {
+        return $this->statut_label;
     }
 
     /**

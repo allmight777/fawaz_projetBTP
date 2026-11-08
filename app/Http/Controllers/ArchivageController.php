@@ -14,12 +14,16 @@ class ArchivageController extends Controller
     // Liste des dossiers validés (archivables ou déjà archivés) pour le chef de mission
     public function index()
     {
-        abort_unless(Auth::user()->isChefLot(), 403, 'Réservé au Bureau de Contrôle.');
+        $user = Auth::user();
+        abort_unless($user->estChefVisa(), 403, 'Réservé aux responsables du Bureau de Contrôle, du Bureau d\'Études et du Maître d\'Œuvre.');
 
+        // Le Bureau de Contrôle archive et voit tous les documents validés ; les autres structures
+        // consultent les archives des documents qui leur ont été adressés.
         $dossiers = Dossier::whereIn('statut', ['valide', 'archive'])
-            ->with(['documentType', 'structureEmettrice', 'lot', 'creePar', 'versions'])
+            ->when(!$user->isChefLot(), fn ($q) => $q->visiblePar($user))
+            ->with(['documentType', 'structureEmettrice', 'lot', 'creePar', 'versions', 'circuitVisas'])
             ->latest()
-            ->paginate(15);
+            ->paginate(200);
 
         return view('cheflot.archives', compact('dossiers'));
     }

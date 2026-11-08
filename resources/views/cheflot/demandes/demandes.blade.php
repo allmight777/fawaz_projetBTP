@@ -4,91 +4,26 @@
 
 @section('content')
 <style>
-    /* Stats Cards */
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        transition: transform 0.3s;
-    }
-    .stat-card:hover { transform: translateY(-3px); box-shadow: 0 5px 20px rgba(4,120,87,0.1); }
-    .stat-info h4 { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
-    .stat-number { font-size: 28px; font-weight: 800; color: #064e3b; }
-    .stat-icon { width: 48px; height: 48px; background: rgba(4,120,87,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #047857; }
-
-    /* Charts */
-    .charts-grid {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .chart-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .chart-card h4 {
-        font-size: 16px;
-        font-weight: 700;
-        color: #064e3b;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    /* Table */
-    .table-container {
-        background: white;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .table-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 20px;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .filters {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .filter-btn {
+.filter-btn {
         padding: 8px 16px;
         border-radius: 10px;
         text-decoration: none;
-        font-size: 14px;
+        font-size: var(--fs-m);
         font-weight: 500;
         transition: all 0.3s;
     }
-    .filter-btn.active {
+.filter-btn.active {
         background: #047857;
         color: white;
     }
-    .filter-btn.inactive {
+.filter-btn.inactive {
         background: #f3f4f6;
         color: #6b7280;
     }
-    .filter-btn.inactive:hover {
+.filter-btn.inactive:hover {
         background: #e5e7eb;
     }
-    .btn-create {
+.btn-create {
         background: linear-gradient(135deg, #047857, #065f46);
         color: white;
         padding: 10px 20px;
@@ -100,36 +35,11 @@
         gap: 8px;
         transition: transform 0.3s;
     }
-    .btn-create:hover {
+.btn-create:hover {
         transform: translateY(-2px);
         color: white;
     }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px; background: #f0fdf4; color: #064e3b; font-weight: 600; font-size: 13px; }
-    td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-    .badge {
-        padding: 4px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        display: inline-block;
-    }
-    .badge-attente { background: #fef3c7; color: #d97706; }
-    .badge-controle { background: #dbeafe; color: #2563eb; }
-    .badge-valide { background: #d1fae5; color: #059669; }
-    .badge-rejete { background: #fee2e2; color: #dc2626; }
-    .badge-basse { background: #d1fae5; color: #059669; }
-    .badge-moyenne { background: #fef3c7; color: #d97706; }
-    .badge-haute { background: #fee2e2; color: #dc2626; }
-    .badge-urgente { background: #fecaca; color: #b91c1c; }
-    .btn-link { color: #047857; text-decoration: none; }
-    .btn-link:hover { text-decoration: underline; }
-    .pagination-wrapper { margin-top: 20px; text-align: center; }
-    @media (max-width: 768px) {
-        .charts-grid { grid-template-columns: 1fr; }
-        .table-container { padding: 15px; overflow-x: auto; }
-        th, td { padding: 8px; font-size: 12px; }
-    }
+.badge-urgente { background: #fecaca; color: #b91c1c; }
 </style>
 
 <!-- Statistiques -->
@@ -200,7 +110,7 @@
     </div>
 
     <div style="overflow-x: auto;">
-        <table>
+        <table data-filtres="statut,date">
             <thead>
                 <tr>
                     <th>N°</th>

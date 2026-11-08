@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Enregistrer le middleware 'role' avec un alias
         $middleware->alias([
             'role' => \App\Http\Middleware\CheckRole::class,
+            'garde' => \App\Http\Middleware\EnsureEspace::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

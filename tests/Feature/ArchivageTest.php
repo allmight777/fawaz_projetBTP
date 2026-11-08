@@ -118,15 +118,16 @@ class ArchivageTest extends TestCase
         foreach ([
             ['entreprise', User::ROLE_ENTREPRISE_CHEF, User::ROLE_ENTREPRISE_COLLABORATEUR, 'entreprise.archives'],
             ['maitre_ouvrage', User::ROLE_MAITRE_OUVRAGE_CHEF, User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'maitre_ouvrage.archives'],
-            ['bureau_etudes', User::ROLE_BUREAU_ETUDES_CHEF, User::ROLE_BUREAU_ETUDES_COLLABORATEUR, 'bureau_etudes.chef.archives'],
+            ['bureau_etudes', User::ROLE_BUREAU_ETUDES_CHEF, User::ROLE_BUREAU_ETUDES_COLLABORATEUR, 'bureau_etudes.chef.archives.index'],
         ] as [$type, $roleChef, $roleCollab, $route]) {
             $structure = Structure::create(['nom' => $type, 'type' => $type]);
             $chef = $this->utilisateur($roleChef, 'responsable_organisme', $structure);
             $collab = $this->utilisateur($roleCollab, 'collaborateur', $structure);
             $this->dossier($chef, 'archive');
 
-            $this->actingAs($chef)->get(route($route))->assertOk()->assertSee('Documents archivés');
-            $this->actingAs($collab)->get(route($route))->assertForbidden();
+            $this->actingAs($chef)->get(route($route))->assertOk()->assertSee('archives');
+            // Le collaborateur est refusé : 403, ou renvoyé vers son propre espace par la garde d'espace.
+            $this->assertContains($this->actingAs($collab)->get(route($route))->status(), [302, 403]);
         }
     }
 

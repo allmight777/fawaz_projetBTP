@@ -71,6 +71,7 @@ class RegisteredUserController extends Controller
                 'bureau_controle' => User::ROLE_BUREAU_CONTROLE_CHEF,
                 'bureau_etudes' => User::ROLE_BUREAU_ETUDES_CHEF,
                 'maitre_ouvrage' => User::ROLE_MAITRE_OUVRAGE_CHEF,
+                'maitre_oeuvre' => User::ROLE_MAITRE_OEUVRE_CHEF,
                 default => User::ROLE_CONTROLEUR,
             };
         }
@@ -80,6 +81,7 @@ class RegisteredUserController extends Controller
             'bureau_controle' => User::ROLE_BUREAU_CONTROLE_COLLABORATEUR,
             'bureau_etudes' => User::ROLE_BUREAU_ETUDES_COLLABORATEUR,
             'maitre_ouvrage' => User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR,
+            'maitre_oeuvre' => User::ROLE_MAITRE_OEUVRE_COLLABORATEUR,
             default => User::ROLE_CONTROLEUR,
         };
     }

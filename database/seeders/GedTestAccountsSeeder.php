@@ -48,5 +48,29 @@ class GedTestAccountsSeeder extends Seeder
                 'email_verified_at' => now(),
             ]
         );
+
+        // Maître d'Œuvre : un responsable et un collaborateur pour tester le circuit de visa à trois niveaux.
+        $maitreOeuvre = Structure::where('type', 'maitre_oeuvre')->first();
+        if ($maitreOeuvre) {
+            foreach ([
+                ['moe.chef@fawaz.local', 'Chef', User::ROLE_MAITRE_OEUVRE_CHEF, 'responsable_organisme', "Responsable Maître d'Œuvre"],
+                ['moe.collab@fawaz.local', 'Collaborateur', User::ROLE_MAITRE_OEUVRE_COLLABORATEUR, 'collaborateur', "Ingénieur Maître d'Œuvre"],
+            ] as [$email, $prenom, $role, $categorie, $fonction]) {
+                User::firstOrCreate(
+                    ['email' => $email],
+                    [
+                        'nom' => 'MOE',
+                        'prenom' => $prenom,
+                        'password' => Hash::make('password'),
+                        'role' => $role,
+                        'structure_id' => $maitreOeuvre->id,
+                        'categorie_role' => $categorie,
+                        'fonction' => $fonction,
+                        'actif' => true,
+                        'email_verified_at' => now(),
+                    ]
+                );
+            }
+        }
     }
 }

@@ -34,7 +34,7 @@ class ControleurAffecte extends Notification
         }
 
         return $message
-            ->action('Analyser le document', route('controleur.affectations.show', $this->documentAssignment))
+            ->action('Analyser le document', route(\App\Support\Espaces::nomRoute('controleur.affectations.show', $notifiable), $this->documentAssignment))
             ->line('Merci de compléter votre analyse dans les meilleurs délais.');
     }
 }

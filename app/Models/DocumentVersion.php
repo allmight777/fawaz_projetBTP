@@ -19,6 +19,7 @@ class DocumentVersion extends Model
         'fichier_valide_chemin',
         'fichier_valide_hash',
         'fichier_valide_scelle_le',
+        'fichier_vise_chemin',
         'fichier_url',
         'importe_par',
         'date_import',
@@ -52,6 +53,22 @@ class DocumentVersion extends Model
     return $this->hasMany(DocumentAssignment::class, 'document_version_id');
 }
 
+    public function visas(): HasMany
+    {
+        return $this->hasMany(DocumentVisa::class)->orderBy('signe_le');
+    }
+
+    public function circuitVisas(): HasMany
+    {
+        return $this->hasMany(CircuitVisa::class);
+    }
+
+    /** Visas par structure pour CETTE version (colonne « Visas » d'une liste de versions). */
+    public function getVisasResumeAttribute(): array
+    {
+        return \App\Services\CircuitVisaService::resumeVersion($this);
+    }
+
     public function decisions(): HasMany
     {
         return $this->hasMany(DocumentDecision::class);
@@ -76,6 +93,11 @@ class DocumentVersion extends Model
         };
     }
 
+    public function getLibelleStatutAttribute(): string
+    {
+        return $this->statut_label;
+    }
+
     public function hasFichier(): bool
     {
         return !empty($this->fichier_chemin) || !empty($this->fichier_url);
@@ -85,7 +107,7 @@ class DocumentVersion extends Model
     // existe, sinon l'original. Ne remplace jamais le fichier source.
     public function getCheminAServirAttribute(): ?string
     {
-        return $this->fichier_valide_chemin ?: $this->fichier_chemin;
+        return $this->fichier_valide_chemin ?: ($this->fichier_vise_chemin ?: $this->fichier_chemin);
     }
 
     /**

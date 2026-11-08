@@ -1,153 +1,172 @@
 @php
     $derniereVersion = $dossier->versions->last();
     $user = Auth::user();
+    $pastille = ['valide' => 'badge-valide', 'archive' => 'badge-controle', 'a_corriger' => 'badge-rejete'];
+    $dossier->loadMissing('versions.visas.user', 'versions.visas.structure', 'circuitVisas.decideur');
+    $circuitService = app(\App\Services\CircuitVisaService::class);
 @endphp
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ $dossier->identifiant_affiche }} — {{ $dossier->titre }}
-        </h2>
-    </x-slot>
+@extends($user->spaceLayout())
 
-    <div class="py-12">
-        <div class="max-w-5xl mx-auto sm:px-6 lg:px-8 space-y-6">
+@section('title', $dossier->identifiant_affiche)
 
-            @if($dossier->isArchived())
-                <div class="bg-gray-100 border border-gray-300 text-gray-700 text-sm rounded-lg px-4 py-3">
-                    <strong>Document archivé</strong> — consultation et téléchargement uniquement : plus aucune modification ni suppression n'est possible, pour personne.
-                </div>
-            @endif
+@section('content')
+<div class="page-header">
+    <h1>{{ $dossier->identifiant_affiche }} · {{ Str::limit($dossier->titre, 60) }}</h1>
+    <a href="{{ url()->previous() !== url()->current() ? url()->previous() : route('dossiers.index') }}" class="btn-back">Retour</a>
+</div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <div class="flex flex-wrap items-center justify-between gap-4">
-                    <div class="space-x-2">
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">{{ $dossier->libelle_statut }}</span>
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">{{ $dossier->mode_traitement === 'validation' ? 'Validation documentaire' : 'Transmission simple' }}</span>
-                        <span class="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700">V{{ $dossier->version_courante }}</span>
-                    </div>
-                    <div class="flex gap-2 flex-wrap">
-                        @if($dossier->statut === 'a_corriger' && $dossier->cree_par === $user->id)
-                            <a href="{{ route('dossiers.versions.create', $dossier) }}" class="inline-flex items-center px-3 py-2 bg-amber-600 text-white text-xs font-semibold rounded-md hover:bg-amber-700">Importer la correction</a>
-                        @endif
-                        @if($dossier->mode_traitement === 'simple' && $dossier->statut === 'transmis' && $dossier->transmissions->isEmpty())
-                            <a href="{{ route('dossiers.transmettre.form', $dossier) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Transmettre</a>
-                        @endif
-                        @if(!$dossier->isArchived() && $user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'soumis')
-                            <a href="{{ route('cheflot.dossiers.affecter', $derniereVersion) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Affecter un contrôleur</a>
-                        @endif
-                        @if(!$dossier->isArchived() && $user->role === 'CHEF LOT' && $derniereVersion && $derniereVersion->statut === 'en_analyse')
-                            <a href="{{ route('cheflot.dossiers.decision', $derniereVersion) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Consolidation / Décision</a>
-                        @endif
-                        @if($user->role === 'CHEF LOT' && $dossier->statut === 'valide')
-                            <a href="{{ route('cheflot.dossiers.diffusion', $dossier) }}" class="inline-flex items-center px-3 py-2 bg-emerald-700 text-white text-xs font-semibold rounded-md hover:bg-emerald-800">Diffuser</a>
-                        @endif
-                        @if($dossier->archivablePar($user))
-                            <button
-                                x-data=""
-                                x-on:click.prevent="$dispatch('open-modal', 'confirm-archive-{{ $dossier->id }}')"
-                                type="button"
-                                class="inline-flex items-center px-3 py-2 bg-gray-600 text-white text-xs font-semibold rounded-md hover:bg-gray-700"
-                            >Archiver</button>
+@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+@if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
 
-                            <x-modal name="confirm-archive-{{ $dossier->id }}" maxWidth="md">
-                                <div class="p-6">
-                                    <h2 class="text-lg font-medium text-gray-900">
-                                        Archiver ce document ?
-                                    </h2>
-                                    <p class="mt-2 text-sm text-gray-600">
-                                        Le document <strong>{{ $dossier->identifiant_affiche }}</strong> — « {{ $dossier->titre }} » sera figé : plus aucune modification ni suppression ne sera possible (ni par l'émetteur, ni par le Bureau de Contrôle, ni par personne). Il restera consultable et téléchargeable. Toutes les parties prenantes (émetteur, contrôleurs, Maître d'Ouvrage du lot) seront prévenues par email.
-                                    </p>
+@if($dossier->isArchived())
+    <div class="alert alert-info"><strong>Document archivé</strong> — consultation et téléchargement uniquement.</div>
+@endif
 
-                                    <div class="mt-6 flex justify-end gap-3">
-                                        <x-secondary-button x-on:click="$dispatch('close')">
-                                            Annuler
-                                        </x-secondary-button>
-
-                                        <form method="POST" action="{{ route('dossiers.archiver', $dossier) }}">
-                                            @csrf
-                                            <x-danger-button>Confirmer l'archivage</x-danger-button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </x-modal>
-                        @endif
-                    </div>
-                </div>
-
-                <dl class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 text-sm">
-                    <div><dt class="text-gray-500">Type</dt><dd class="font-medium">[{{ $dossier->documentType->code }}] {{ $dossier->documentType->nom }}</dd></div>
-                    <div><dt class="text-gray-500">Structure émettrice</dt><dd class="font-medium">{{ $dossier->structureEmettrice?->nom ?? '—' }}</dd></div>
-                    <div><dt class="text-gray-500">Lot</dt><dd class="font-medium">{{ $dossier->lot?->nom ?? '—' }}</dd></div>
-                    <div><dt class="text-gray-500">Créé par</dt><dd class="font-medium">{{ $dossier->creePar->full_name }}</dd></div>
-                </dl>
-                @if($dossier->description)
-                    <p class="mt-4 text-sm text-gray-600">{{ $dossier->description }}</p>
+<div style="display:grid; gap:14px;">
+    <div class="card">
+        <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:center;">
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <span class="badge {{ $pastille[$dossier->statut] ?? 'badge-attente' }}">{{ $dossier->statut_label }}</span>
+                <span class="badge badge-controle">{{ $dossier->mode_traitement === 'validation' ? 'Validation documentaire' : 'Transmission simple' }}</span>
+                <span class="badge badge-attente">V{{ $dossier->version_courante }}</span>
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                @if($dossier->statut === 'a_corriger' && $dossier->cree_par === $user->id)
+                    <a href="{{ route('dossiers.versions.create', $dossier) }}" class="btn-submit" style="width:auto; display:inline-block;">Importer la correction</a>
+                @endif
+                @if($dossier->mode_traitement === 'simple' && $dossier->statut === 'transmis' && $dossier->transmissions->isEmpty())
+                    <a href="{{ route('dossiers.transmettre.form', $dossier) }}" class="btn-submit" style="width:auto; display:inline-block;">Transmettre</a>
+                @endif
+                @if($derniereVersion && $circuitService->peutAffecter($user, $derniereVersion))
+                    <a href="{{ sroute('cheflot.dossiers.affecter', $derniereVersion) }}" class="btn-submit" style="width:auto; display:inline-block;">Affecter un collaborateur</a>
+                @endif
+                @if($derniereVersion && $circuitService->peutDecider($user, $derniereVersion))
+                    <a href="{{ sroute('cheflot.dossiers.decision', $derniereVersion) }}" class="btn-submit" style="width:auto; display:inline-block;">Consolidation / Décision</a>
+                @endif
+                @if($user->estChefVisa() && $dossier->statut === 'valide')
+                    <a href="{{ sroute('cheflot.dossiers.diffusion', $dossier) }}" class="btn-submit" style="width:auto; display:inline-block;">Diffuser</a>
+                @endif
+                @if($dossier->archivablePar($user))
+                    <form method="POST" action="{{ route('dossiers.archiver', $dossier) }}"
+                          onsubmit="return confirm('Archiver ce document ? Il sera figé : plus aucune modification ni suppression, pour personne. Les parties prenantes seront prévenues par email.')">
+                        @csrf
+                        <button type="submit" class="btn-danger">Archiver</button>
+                    </form>
                 @endif
             </div>
+        </div>
 
-            <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                <h3 class="font-semibold text-gray-800 mb-4">Historique des versions</h3>
-                <div class="space-y-4">
-                    @foreach($dossier->versions as $version)
-                        <div class="border border-gray-200 rounded-lg p-4">
-                            <div class="flex items-center justify-between">
-                                <span class="font-medium">V{{ $version->numero_version }}</span>
-                                <span class="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-700">{{ $version->libelle_statut }}</span>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px; margin-top:22px;">
+            @foreach(['Type' => '['.$dossier->documentType->code.'] '.$dossier->documentType->nom, 'Structure émettrice' => $dossier->structureEmettrice?->nom ?? '—', 'Lot' => $dossier->lot?->nom ?? '—', 'Créé par' => $dossier->creePar->full_name] as $label => $valeur)
+                <div><div style="font-size: var(--fs-s); color:var(--muted); font-weight:700;">{{ $label }}</div><div style="font-weight:700;">{{ $valeur }}</div></div>
+            @endforeach
+        </div>
+        @if($dossier->description)<p style="margin-top:16px; color:var(--muted);">{{ $dossier->description }}</p>@endif
+    </div>
+
+    @include('partials.circuit-visas')
+
+    <div class="card">
+        <h3 class="card-title">Historique des versions</h3>
+        <div class="vers">
+            @foreach($dossier->versions->sortByDesc('numero_version') as $version)
+                @php
+                    $pv = ['valide' => 'badge-valide', 'a_corriger' => 'badge-rejete'][$version->statut] ?? 'badge-attente';
+                    $initiales = fn ($u) => mb_strtoupper(mb_substr($u?->prenom ?: '', 0, 1) . mb_substr($u?->nom ?: '', 0, 1)) ?: '?';
+                    $libAff = ['en_attente' => 'En attente', 'en_cours' => 'En cours', 'termine' => 'Terminé'];
+                @endphp
+                <article class="ver">
+                    <header class="ver-head">
+                        <div class="ver-id">
+                            <span class="ver-n">V{{ $version->numero_version }}</span>
+                            <div>
+                                <span class="badge {{ $pv }}">{{ $version->libelle_statut }}</span>
+                                <div class="ver-meta">Importée par {{ $version->importePar->full_name }} · {{ $version->date_import->format('d/m/Y à H:i') }}</div>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Importée par {{ $version->importePar->full_name }} le {{ $version->date_import->format('d/m/Y H:i') }}</p>
+                        </div>
+                        <div class="ver-actions">
                             @if($version->hasFichier())
-                                <a href="{{ route('dossiers.telecharger', [$dossier, $version]) }}" class="text-sm text-emerald-700 hover:underline">Télécharger le fichier</a>
+                                <a href="{{ route('dossiers.telecharger', [$dossier, $version]) }}" class="btn">Télécharger</a>
                             @endif
                             @if(!$dossier->isArchived() && $version->statut === 'en_attente_checklist' && $dossier->cree_par === $user->id)
-                                <a href="{{ route('document-versions.checklist', $version) }}" class="block text-sm text-amber-700 hover:underline mt-1">Compléter la checklist</a>
-                            @endif
-
-                            @if($peutVoirAnalyse)
-                                @foreach($version->affectations as $affectation)
-                                    <div class="mt-3 ml-4 border-l-2 border-gray-200 pl-4">
-                                        <p class="text-xs font-medium text-gray-700">Contrôleur : {{ $affectation->controleur->full_name }} @if($affectation->specialite) ({{ $affectation->specialite }}) @endif — {{ $affectation->statut }}</p>
-                                        @foreach($affectation->observations as $observation)
-                                            <div class="text-xs text-gray-600 mt-1 {{ $observation->retenue ? 'font-semibold text-amber-700' : '' }}">
-                                                <span class="uppercase">{{ $observation->type === 'non_conformite' ? 'Non-conformité' : 'Observation' }}</span>
-                                                — {{ $observation->auteur->full_name }} : {{ $observation->contenu }}
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                @endforeach
-
-                                @foreach($version->decisions as $decision)
-                                    <div class="mt-3 text-sm {{ $decision->estValidee() ? 'text-emerald-700' : 'text-red-700' }}">
-                                        Décision : <strong>{{ $decision->estValidee() ? 'Validé' : 'À corriger' }}</strong>
-                                        par {{ $decision->validateur->full_name }} le {{ $decision->date_decision->format('d/m/Y H:i') }}
-                                        @if($decision->commentaires) — {{ $decision->commentaires }} @endif
-                                    </div>
-                                @endforeach
+                                <a href="{{ route('document-versions.checklist', $version) }}" class="btn-submit" style="width:auto; display:inline-block;">Compléter la checklist</a>
                             @endif
                         </div>
-                    @endforeach
-                </div>
-            </div>
+                    </header>
 
-            @if($dossier->transmissions->isNotEmpty())
-                <div class="bg-white shadow-sm sm:rounded-lg p-6">
-                    <h3 class="font-semibold text-gray-800 mb-4">Transmissions</h3>
-                    <div class="space-y-3">
-                        @foreach($dossier->transmissions as $transmission)
-                            <div class="text-sm border-b border-gray-100 pb-2">
-                                <span class="font-medium">{{ $transmission->mode === 'simple' ? 'Transmission simple' : 'Diffusion post-validation' }}</span>
-                                par {{ $transmission->emetteur->full_name }} le {{ $transmission->date_transmission->format('d/m/Y H:i') }}
-                                <div class="text-xs text-gray-500">
-                                    Destinataires :
-                                    {{ $transmission->destinataires->map(fn($d) => $d->structure?->nom ?? $d->user?->full_name)->filter()->implode(', ') ?: '—' }}
+                    @if($version->visas->isNotEmpty())
+                        <section class="ver-sec">
+                            <h4>Visas</h4>
+                            <div class="ver-chips">
+                                @foreach($version->visas as $visa)
+                                    <span class="ver-chip"><b>{{ $visa->type === 'validation' ? 'Validation' : 'Envoi' }}</b> {{ $visa->user?->full_name }}@if($visa->structure) · {{ $visa->structure->nom }}@endif · {{ $visa->signe_le->format('d/m/Y') }}</span>
+                                @endforeach
+                            </div>
+                        </section>
+                    @endif
+
+                    @php $affectationsVisibles = $version->affectations->filter(fn ($a) => $a->controleur?->structureVisa() === $user->structureVisa()); @endphp
+                    @if($peutVoirAnalyse && $affectationsVisibles->isNotEmpty())
+                        <section class="ver-sec">
+                            <h4>Collaborateurs</h4>
+                            <div class="ver-list">
+                                @foreach($affectationsVisibles as $affectation)
+                                    <div class="ver-row">
+                                        <span class="ver-av">{{ $initiales($affectation->controleur) }}</span>
+                                        <div class="ver-who"><strong>{{ $affectation->controleur->full_name }}</strong>@if($affectation->specialite)<small>{{ $affectation->specialite }}</small>@endif</div>
+                                        <span class="badge badge-attente">{{ $libAff[$affectation->statut] ?? ucfirst(str_replace('_', ' ', $affectation->statut)) }}</span>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </section>
+
+                        @php $observations = $affectationsVisibles->flatMap->observations; @endphp
+                        @if($observations->isNotEmpty())
+                            <section class="ver-sec">
+                                <h4>Observations</h4>
+                                <div class="ver-list">
+                                    @foreach($observations as $observation)
+                                        <blockquote class="ver-quote {{ $observation->type === 'non_conformite' ? 'nc' : '' }} {{ $observation->retenue ? 'retenue' : '' }}">
+                                            <div class="ver-quote-head">
+                                                <span>{{ $observation->type === 'non_conformite' ? 'Non-conformité' : 'Observation' }}@if($observation->retenue) · retenue @endif</span>
+                                                <small>{{ $observation->auteur->full_name }}</small>
+                                            </div>
+                                            <p>{{ $observation->contenu }}</p>
+                                        </blockquote>
+                                    @endforeach
                                 </div>
-                                @if($transmission->commentaire)
-                                    <div class="text-xs text-gray-600 mt-1">{{ $transmission->commentaire }}</div>
-                                @endif
+                            </section>
+                        @endif
+                    @endif
+
+                    @if($peutVoirAnalyse)
+                        @foreach($version->decisions as $decision)
+                            <div class="ver-verdict {{ $decision->estValidee() ? 'ok' : 'ko' }}">
+                                <strong>{{ $decision->estValidee() ? 'Validé' : 'À corriger' }}</strong>
+                                <span>par {{ $decision->validateur->full_name }} · {{ $decision->date_decision->format('d/m/Y à H:i') }}</span>
+                                @if($decision->commentaires)<p>{{ $decision->commentaires }}</p>@endif
                             </div>
                         @endforeach
-                    </div>
-                </div>
-            @endif
+                    @endif
+                </article>
+            @endforeach
         </div>
     </div>
-</x-app-layout>
+
+    @if($dossier->transmissions->isNotEmpty())
+        <div class="card">
+            <h3 class="card-title">Transmissions</h3>
+            @foreach($dossier->transmissions as $transmission)
+                <div style="padding:12px 0; border-top:1px solid var(--line); font-size: var(--fs-m);">
+                    <strong>{{ match($transmission->mode) { 'simple' => 'Transmission simple', 'validation' => 'Envoi en circuit de visa', 'rfi' => 'Réponse à une demande d\'information', default => 'Diffusion post-validation' } }}</strong>
+                    par {{ $transmission->emetteur->full_name }} le {{ $transmission->date_transmission->format('d/m/Y H:i') }}
+                    <div style="font-size: var(--fs-s); color:var(--muted);">
+                        Destinataires : {{ $transmission->destinataires->map(fn($d) => $d->structure?->nom ?? $d->user?->full_name)->filter()->implode(', ') ?: '—' }}
+                    </div>
+                    @if($transmission->commentaire)<div style="font-size: var(--fs-m); color:var(--muted); margin-top:2px;">{{ $transmission->commentaire }}</div>@endif
+                </div>
+            @endforeach
+        </div>
+    @endif
+</div>
+@endsection

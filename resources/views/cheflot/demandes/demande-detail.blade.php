@@ -4,18 +4,18 @@
 
 @section('content')
 <style>
-    .detail-container {
+.detail-container {
         max-width: 1200px;
         margin: 0 auto;
     }
-    .detail-card {
+.detail-card {
         background: white;
         border-radius: 20px;
         padding: 30px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         margin-bottom: 25px;
     }
-    .detail-header {
+.detail-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -25,73 +25,35 @@
         flex-wrap: wrap;
         gap: 15px;
     }
-    .detail-header h3 {
+.detail-header h3 {
         font-size: 20px;
         font-weight: 700;
         color: #064e3b;
         margin: 0;
     }
-    .badge {
-        padding: 6px 12px;
-        border-radius: 20px;
-        font-size: 12px;
-        font-weight: 600;
-    }
-    .badge-attente { background: #fef3c7; color: #d97706; }
-    .badge-controle { background: #dbeafe; color: #2563eb; }
-    .badge-valide { background: #d1fae5; color: #059669; }
-    .badge-rejete { background: #fee2e2; color: #dc2626; }
-    .badge-basse { background: #d1fae5; color: #059669; }
-    .badge-moyenne { background: #fef3c7; color: #d97706; }
-    .badge-haute { background: #fee2e2; color: #dc2626; }
-    .badge-urgente { background: #fecaca; color: #b91c1c; }
-    .info-grid {
+.badge-urgente { background: #fecaca; color: #b91c1c; }
+.info-grid {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 20px;
     }
-    .info-item {
+.info-item {
         margin-bottom: 15px;
     }
-    .info-label {
-        font-size: 12px;
+.info-label {
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-bottom: 5px;
         display: flex;
         align-items: center;
         gap: 5px;
     }
-    .info-value {
-        font-size: 15px;
+.info-value {
+        font-size: var(--fs-m);
         font-weight: 600;
         color: #1f2937;
     }
-    .btn-primary {
-        background: linear-gradient(135deg, #047857, #065f46);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        border: none;
-        cursor: pointer;
-    }
-    .btn-primary:hover { transform: translateY(-1px); }
-    .btn-secondary {
-        background: #6b7280;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-size: 14px;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .fichier-card {
+.fichier-card {
         background: #f0fdf4;
         border: 1px solid #047857;
         border-radius: 12px;
@@ -102,14 +64,14 @@
         flex-wrap: wrap;
         gap: 15px;
     }
-    .controleur-card {
+.controleur-card {
         background: linear-gradient(135deg, #f0fdf4, #dcfce7);
         border: 2px solid #047857;
         border-radius: 16px;
         padding: 20px;
         margin-top: 10px;
     }
-    .controleur-header {
+.controleur-header {
         display: flex;
         align-items: center;
         gap: 15px;
@@ -117,7 +79,7 @@
         padding-bottom: 10px;
         border-bottom: 1px solid #bbf7d0;
     }
-    .controleur-avatar {
+.controleur-avatar {
         width: 50px;
         height: 50px;
         background: #047857;
@@ -129,38 +91,38 @@
         font-weight: 700;
         font-size: 20px;
     }
-    .controleur-info h4 {
+.controleur-info h4 {
         font-size: 16px;
         font-weight: 700;
         color: #064e3b;
         margin: 0 0 5px 0;
     }
-    .controleur-info p {
-        font-size: 13px;
+.controleur-info p {
+        font-size: var(--fs-m);
         color: #6b7280;
         margin: 0;
     }
-    .controleur-details {
+.controleur-details {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
     }
-    .controleur-detail-item {
+.controleur-detail-item {
         background: white;
         padding: 10px;
         border-radius: 10px;
     }
-    .controleur-detail-label {
-        font-size: 11px;
+.controleur-detail-label {
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-bottom: 3px;
     }
-    .controleur-detail-value {
-        font-size: 14px;
+.controleur-detail-value {
+        font-size: var(--fs-m);
         font-weight: 600;
         color: #1f2937;
     }
-    .non-assigne-card {
+.non-assigne-card {
         background: #fef3c7;
         border: 1px solid #f59e0b;
         border-radius: 12px;
@@ -168,26 +130,26 @@
         text-align: center;
         color: #d97706;
     }
-    .assign-form {
+.assign-form {
         background: #f9fafb;
         padding: 20px;
         border-radius: 12px;
         margin-top: 20px;
     }
-    select {
+select {
         padding: 10px 15px;
         border: 1px solid #e5e7eb;
         border-radius: 8px;
         min-width: 250px;
-        font-size: 14px;
+        font-size: var(--fs-m);
     }
-    .text-danger { color: #dc2626; }
-    .text-success { color: #059669; }
-    @media (max-width: 768px) {
-        .info-grid { grid-template-columns: 1fr; }
-        .detail-card { padding: 20px; }
-        .controleur-details { grid-template-columns: 1fr; }
-    }
+.text-danger { color: #dc2626; }
+.text-success { color: #059669; }
+@media (max-width: 768px) {
+.info-grid { grid-template-columns: 1fr; }
+.detail-card { padding: 20px; }
+.controleur-details { grid-template-columns: 1fr; }
+}
 </style>
 
 <div class="detail-container">
@@ -307,12 +269,12 @@
             <div class="non-assigne-card">
                 <i class="fas fa-user-clock" style="font-size: 48px; margin-bottom: 15px; display: block;"></i>
                 <p><strong><i class="fas fa-hourglass-start"></i> Pas encore pris en charge</strong></p>
-                <p style="font-size: 14px; margin-top: 10px;">Aucun contrôleur n'a encore été assigné à cette demande.</p>
-                <p style="font-size: 13px; margin-top: 5px;">La demande est en attente d'assignation par le chef de lot.</p>
+                <p style="font-size: var(--fs-m); margin-top: 10px;">Aucun contrôleur n'a encore été assigné à cette demande.</p>
+                <p style="font-size: var(--fs-m); margin-top: 5px;">La demande est en attente d'assignation par le chef de lot.</p>
             </div>
 
             <!-- Formulaire d'assignation visible uniquement pour le chef de lot -->
-            @if(Auth::user()->role == 'CHEF LOT')
+            @if(Auth::user()->isChefLot())
             <div class="assign-form">
                 <form action="{{ route('cheflot.demandes.assigner', $demande) }}" method="POST">
                     @csrf
@@ -356,7 +318,7 @@
                         <td>{{ $version->created_at->format('d/m/Y H:i') }}</td>
                         <td><span class="badge badge-valide">Validée</span></td>
                         <td>
-                            <a href="{{ route('cheflot.demandes.show', $version->id) }}" class="btn-primary" style="padding:4px 12px; font-size:12px;">
+                            <a href="{{ route('cheflot.demandes.show', $version->id) }}" class="btn-primary" style="padding:4px 12px; font-size: var(--fs-s);">
                                 <i class="fas fa-eye"></i> Voir
                             </a>
                         </td>

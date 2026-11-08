@@ -14,6 +14,7 @@ class StructureSeeder extends Seeder
             ['nom' => 'Bureau de Contrôle', 'type' => 'bureau_controle'],
             ['nom' => "Bureau d'Études", 'type' => 'bureau_etudes'],
             ['nom' => "Maître d'Ouvrage Délégué", 'type' => 'maitre_ouvrage'],
+            ['nom' => "Maître d'Œuvre", 'type' => 'maitre_oeuvre'],
         ];
 
         foreach ($structures as $structure) {

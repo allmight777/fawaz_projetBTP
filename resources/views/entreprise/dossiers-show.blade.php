@@ -4,71 +4,14 @@
 
 @section('content')
 <style>
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .page-header h2 {
-        font-size: 24px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin: 0;
-    }
-    .page-header h2 i {
-        color: #2563eb;
-        margin-right: 10px;
-    }
-    .btn-back {
-        background: #6c757d;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-    }
-    .btn-back:hover {
-        background: #5a6268;
-        color: white;
-    }
-    .btn-primary {
-        background: linear-gradient(135deg, #2563eb, #1a4fc4);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    .btn-primary:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(37,99,235,0.3);
-        color: white;
-    }
-    .btn-success {
+.btn-success {
         background: linear-gradient(135deg, #00a86b, #008a56);
         color: white;
         border: none;
         padding: 8px 16px;
         border-radius: 6px;
         font-weight: 600;
-        font-size: 12px;
+        font-size: var(--fs-s);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -76,38 +19,19 @@
         text-decoration: none;
         transition: all 0.3s ease;
     }
-    .btn-success:hover {
+.btn-success:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 15px rgba(0,168,107,0.3);
         color: white;
     }
-    .btn-outline-blue {
-        background: transparent;
-        color: #2563eb;
-        border: 2px solid #2563eb;
-        padding: 8px 16px;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 12px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        text-decoration: none;
-        transition: all 0.3s ease;
-    }
-    .btn-outline-blue:hover {
-        background: #2563eb;
-        color: white;
-    }
-    .btn-warning {
+.btn-warning {
         background: linear-gradient(135deg, #f59e0b, #d97706);
         color: white;
         border: none;
         padding: 10px 20px;
         border-radius: 8px;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         cursor: pointer;
         display: inline-flex;
         align-items: center;
@@ -115,69 +39,57 @@
         text-decoration: none;
         transition: all 0.3s ease;
     }
-    .btn-warning:hover {
+.btn-warning:hover {
         transform: translateY(-2px);
         box-shadow: 0 4px 15px rgba(245,158,11,0.3);
         color: white;
     }
-    .info-card {
+.info-card {
         background: white;
         border-radius: 16px;
         padding: 24px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.04);
         margin-bottom: 24px;
     }
-    .info-grid {
+.info-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
         gap: 20px;
     }
-    .info-item {
+.info-item {
         display: flex;
         flex-direction: column;
     }
-    .info-item .label {
-        font-size: 12px;
+.info-item .label {
+        font-size: var(--fs-s);
         color: #888;
         text-transform: uppercase;
         letter-spacing: 0.3px;
         font-weight: 600;
     }
-    .info-item .value {
-        font-size: 15px;
+.info-item .value {
+        font-size: var(--fs-m);
         font-weight: 600;
         color: #1a1a1a;
         margin-top: 4px;
     }
-    .info-item .value i {
+.info-item .value i {
         color: #2563eb;
         margin-right: 6px;
     }
-    .badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        display: inline-block;
-    }
-    .badge-valide { background: #d1fae5; color: #059669; }
-    .badge-en-attente { background: #fef3c7; color: #d97706; }
-    .badge-en-cours { background: #dbeafe; color: #2563eb; }
-    .badge-rejete { background: #fee2e2; color: #dc2626; }
-    .badge-a-corriger { background: #fee2e2; color: #dc2626; }
-    .badge-brouillon { background: #e5e7eb; color: #6b7280; }
-    .badge-soumis { background: #dbeafe; color: #2563eb; }
-
-    .versions-container {
+.badge-en-attente { background: #fef3c7; color: #d97706; }
+.badge-en-cours { background: #dbeafe; color: #2563eb; }
+.badge-a-corriger { background: #fee2e2; color: #dc2626; }
+.badge-brouillon { background: #e5e7eb; color: #6b7280; }
+.badge-soumis { background: #dbeafe; color: #2563eb; }
+.versions-container {
         background: white;
         border-radius: 16px;
         padding: 24px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.04);
         overflow: hidden;
     }
-    .versions-header {
+.versions-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -185,105 +97,48 @@
         flex-wrap: wrap;
         gap: 15px;
     }
-    .versions-header h3 {
+.versions-header h3 {
         font-size: 18px;
         font-weight: 700;
         color: #1a1a1a;
         margin: 0;
     }
-    .versions-header h3 i {
+.versions-header h3 i {
         color: #2563eb;
         margin-right: 8px;
     }
-    .table-wrapper {
-        overflow-x: auto;
-    }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 14px;
-    }
-    th {
-        text-align: left;
-        padding: 12px 14px;
-        background: #eff4ff;
-        color: #1a1a1a;
-        font-weight: 600;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.3px;
-        border-bottom: 2px solid #dbeafe;
-    }
-    td {
-        padding: 12px 14px;
-        border-bottom: 1px solid #f0eeea;
-        color: #333;
-    }
-    tr:hover td {
-        background: #f8faff;
-    }
-    .btn-link {
-        color: #2563eb;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        transition: all 0.3s ease;
-    }
-    .btn-link:hover {
-        color: #1a4fc4;
-        gap: 8px;
-    }
-    .btn-link-warning {
+.btn-link-warning {
         color: #d97706;
         text-decoration: none;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         display: inline-flex;
         align-items: center;
         gap: 4px;
         transition: all 0.3s ease;
     }
-    .btn-link-warning:hover {
+.btn-link-warning:hover {
         color: #b45309;
         gap: 8px;
     }
-    .empty-state {
-        padding: 40px 20px;
-        text-align: center;
-        color: #888;
-    }
-    .empty-state i {
-        font-size: 40px;
-        display: block;
-        margin-bottom: 12px;
-        opacity: 0.3;
-        color: #2563eb;
-    }
-    .version-badge {
+.version-badge {
         display: inline-block;
         padding: 2px 10px;
         border-radius: 12px;
-        font-size: 12px;
+        font-size: var(--fs-s);
         font-weight: 700;
         background: #eff4ff;
         color: #2563eb;
     }
-    @media (max-width: 768px) {
-        .info-grid {
+@media (max-width: 768px) {
+.info-grid {
             grid-template-columns: 1fr;
         }
-        .versions-header {
+.versions-header {
             flex-direction: column;
             align-items: flex-start;
         }
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-    }
+}
 </style>
 
 <div class="page-header">
@@ -340,17 +195,19 @@
     </div>
 </div>
 
+@include('partials.circuit-visas')
+
 <!-- Versions du dossier -->
 <div class="versions-container">
     <div class="versions-header">
         <h3><i class="fas fa-code-branch"></i> Versions du document</h3>
-        <span style="font-size:13px; color:#888;">
+        <span style="font-size: var(--fs-m); color:#888;">
             <i class="fas fa-file-alt"></i> Total : {{ $dossier->versions->count() }} version(s)
         </span>
     </div>
 
     <div class="table-wrapper">
-        <table>
+        <table data-no-filter>
             <thead>
                 <tr>
                     <th>Version</th>
@@ -367,7 +224,7 @@
                     <td>
                         <span class="version-badge">V{{ $version->numero_version }}</span>
                         @if($loop->first)
-                            <span style="font-size:10px; color:#059669; margin-left:4px;">
+                            <span style="font-size: var(--fs-s); color:#059669; margin-left:4px;">
                                 <i class="fas fa-star"></i> Dernière
                             </span>
                         @endif
@@ -384,16 +241,16 @@
                             @elseif($version->statut == 'a_corriger') badge-a-corriger
                             @elseif($version->statut == 'soumis') badge-soumis
                             @else badge-brouillon @endif">
-                            {{ $version->statut }}
+                            {{ $version->statut_label }}
                         </span>
                         @if($version->fichier_valide_hash)
-                            <div title="Empreinte SHA-256 calculée sur le document tamponné, à la validation. Toute modification du fichier après coup change cette empreinte." style="font-size:10px; color:#9ca3af; margin-top:3px; font-family:monospace; cursor:help;">
+                            <div title="Empreinte SHA-256 calculée sur le document tamponné, à la validation. Toute modification du fichier après coup change cette empreinte." style="font-size: var(--fs-s); color:#9ca3af; margin-top:3px; font-family:monospace; cursor:help;">
                                 <i class="fas fa-fingerprint"></i> {{ substr($version->fichier_valide_hash, 0, 12) }}…
                             </div>
                         @endif
                     </td>
                     <td>{{ $version->importePar->full_name ?? 'Inconnu' }}</td>
-                    <td style="font-size:13px; color:#888;">
+                    <td style="font-size: var(--fs-m); color:#888;">
                         {{ $version->created_at->format('d/m/Y H:i') }}
                     </td>
                     <td style="text-align:center;">
@@ -433,7 +290,7 @@
         <h3><i class="fas fa-paper-plane"></i> Historique des transmissions</h3>
     </div>
     <div class="table-wrapper">
-        <table>
+        <table data-no-filter>
             <thead>
                 <tr>
                     <th>Date</th>
@@ -445,18 +302,18 @@
             <tbody>
                 @foreach($dossier->transmissions->sortByDesc('created_at') as $transmission)
                 <tr>
-                    <td style="font-size:13px; color:#888;">
+                    <td style="font-size: var(--fs-m); color:#888;">
                         {{ $transmission->created_at->format('d/m/Y H:i') }}
                     </td>
                     <td>
                         <span class="badge {{ $transmission->mode == 'validation' ? 'badge-en-cours' : 'badge-soumis' }}">
-                            {{ $transmission->mode == 'validation' ? 'Contrôle' : 'Informatif' }}
+                            {{ $transmission->mode == 'validation' ? 'Circuit de visa' : 'Informatif' }}
                         </span>
                     </td>
                     <td>{{ $transmission->commentaire ?? '-' }}</td>
                     <td>
                         @foreach($transmission->destinataires as $dest)
-                            <span style="display:inline-block; background:#f0f0f0; padding:2px 10px; border-radius:12px; font-size:12px; margin:2px;">
+                            <span style="display:inline-block; background:#f0f0f0; padding:2px 10px; border-radius:12px; font-size: var(--fs-s); margin:2px;">
                                 {{ $dest->user->full_name ?? 'Inconnu' }}
                             </span>
                         @endforeach

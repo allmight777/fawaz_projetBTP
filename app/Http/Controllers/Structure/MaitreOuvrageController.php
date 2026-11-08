@@ -37,9 +37,9 @@ class MaitreOuvrageController extends Controller
     private function dossiersVisibles()
     {
         return $this->baseQuery()
-            ->with(['documentType', 'structureEmettrice', 'lot'])
+            ->with(['documentType', 'structureEmettrice', 'lot', 'circuitVisas'])
             ->latest()
-            ->paginate(15);
+            ->paginate(200);
     }
 
     /**
@@ -48,19 +48,9 @@ class MaitreOuvrageController extends Controller
      */
     private function statistiques(): array
     {
-        $statutsAffiches = [
-            'soumis' => 'Soumis',
-            'en_analyse' => 'En analyse',
-            'valide' => 'Validé',
-            'a_corriger' => 'À corriger',
-            'archive' => 'Archivé',
-        ];
-        $repartitionStatutsLabels = [];
-        $repartitionStatutsData = [];
-        foreach ($statutsAffiches as $statut => $label) {
-            $repartitionStatutsLabels[] = $label;
-            $repartitionStatutsData[] = $this->baseQuery()->where('statut', $statut)->count();
-        }
+        $c = \App\Support\StatsDossiers::compter(fn () => $this->baseQuery());
+        $repartitionStatutsLabels = ['En attente de visa', 'En analyse', 'Validé', 'À corriger', 'Informatif'];
+        $repartitionStatutsData = [$c['en_attente'], $c['en_analyse'], $c['valides'], $c['a_corriger'], $c['informatifs']];
 
         $parType = $this->baseQuery()
             ->join('document_types', 'document_types.id', '=', 'dossiers.document_type_id')
@@ -87,9 +77,9 @@ class MaitreOuvrageController extends Controller
             'parTypeData' => $parType->pluck('total'),
             'evolutionLabels' => $months,
             'evolutionData' => $evolutionData,
-            'validesCount' => $this->baseQuery()->where('statut', 'valide')->count(),
-            'aCorrigerCount' => $this->baseQuery()->where('statut', 'a_corriger')->count(),
-            'enAnalyseCount' => $this->baseQuery()->where('statut', 'en_analyse')->count(),
+            'validesCount' => $c['valides'],
+            'aCorrigerCount' => $c['a_corriger'],
+            'enAnalyseCount' => $c['en_analyse'] + $c['en_attente'],
         ];
     }
 
@@ -123,9 +113,9 @@ class MaitreOuvrageController extends Controller
 
         $dossiers = $this->baseQuery()
             ->where('statut', 'archive')
-            ->with(['documentType', 'structureEmettrice', 'lot'])
+            ->with(['documentType', 'structureEmettrice', 'lot', 'circuitVisas'])
             ->latest()
-            ->paginate(15);
+            ->paginate(200);
 
         return view('maitre_ouvrage.archives', compact('dossiers'));
     }

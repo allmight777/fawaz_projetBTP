@@ -30,11 +30,14 @@ class ChefLotController extends Controller
         // Base : tous les dossiers qui ont été envoyés à ce chef
         $baseQuery = fn() => Dossier::transmisA($user);
 
-        $totalDocuments = $baseQuery()->count();
-        $documentsEnAttente = $baseQuery()->whereIn('statut', ['soumis', 'en_cours'])->count();
-        $documentsValides = $baseQuery()->where('statut', 'valide')->count();
-        $documentsACorriger = $baseQuery()->where('statut', 'a_corriger')->count();
-        $documentsEnAnalyse = $baseQuery()->where('statut', 'en_analyse')->count();
+        // Chiffres du point de vue du visa de MA structure (BC, BE ou MOE)
+        $stats = \App\Support\StatsDossiers::visa($user);
+        $totalDocuments = $stats['total'];
+        $documentsEnAttente = $stats['en_attente'];
+        $documentsValides = $stats['valides'];
+        $documentsACorriger = $stats['a_corriger'];
+        $documentsEnAnalyse = $stats['en_analyse'];
+        $documentsInformatifs = $stats['informatifs'];
 
         $totalCollaborateurs = User::where('structure_id', $user->structure_id)
             ->where('categorie_role', 'collaborateur')
@@ -45,12 +48,12 @@ class ChefLotController extends Controller
             ->count();
 
         $documentsRecents = $baseQuery()
-            ->with(['documentType', 'creePar.structure'])
+            ->with(['documentType', 'creePar.structure', 'circuitVisas'])
             ->orderByDesc('created_at')
             ->take(5)
             ->get();
 
-        $structureLabels = ['entreprise' => 'Entreprise', 'bureau_etudes' => "Bureau d'Études", 'maitre_ouvrage' => "Maître d'Ouvrage"];
+        $structureLabels = $this->originesDocuments($user);
         $repartitionStructures = [];
         foreach ($structureLabels as $type => $label) {
             $repartitionStructures[$label] = $baseQuery()
@@ -75,6 +78,7 @@ class ChefLotController extends Controller
             'documentsValides',
             'documentsACorriger',
             'documentsEnAnalyse',
+            'documentsInformatifs',
             'totalCollaborateurs',
             'collaborateursActifs',
             'documentsRecents',
@@ -82,6 +86,21 @@ class ChefLotController extends Controller
             'months',
             'documentsData'
         ));
+    }
+
+    /** Structures émettrices affichées dans les répartitions : toutes sauf la structure de l'utilisateur. */
+    private function originesDocuments(User $user): array
+    {
+        $labels = [
+            'entreprise' => 'Entreprise',
+            'bureau_controle' => 'Bureau de Contrôle',
+            'bureau_etudes' => "Bureau d'Études",
+            'maitre_oeuvre' => "Maître d'Œuvre",
+            'maitre_ouvrage' => "Maître d'Ouvrage",
+        ];
+        unset($labels[$user->structureVisa()]);
+
+        return $labels;
     }
 
     public function demandes()
@@ -167,7 +186,7 @@ class ChefLotController extends Controller
     public function voirDemande($id)
     {
         $demande = Demande::with(['soumisPar', 'lot', 'controleur', 'document', 'versions', 'historiques.user'])->findOrFail($id);
-        $controleurs = User::where('role', 'CONTROLEUR')->where('actif', true)->get();
+        $controleurs = User::controleurs()->where('actif', true)->get();
         return view('cheflot.demandes.demande-detail', compact('demande', 'controleurs'));
     }
 
@@ -297,7 +316,7 @@ class ChefLotController extends Controller
             ->toArray();
 
         $parStructure = [];
-        $structureLabels = ['entreprise' => 'Entreprise', 'bureau_etudes' => "Bureau d'Études", 'maitre_ouvrage' => "Maître d'Ouvrage"];
+        $structureLabels = $this->originesDocuments($user);
         foreach ($structureLabels as $type => $label) {
             $parStructure[$label] = $baseQuery()
                 ->whereHas('creePar.structure', fn($q) => $q->where('type', $type))
@@ -378,7 +397,7 @@ class ChefLotController extends Controller
         $historiques = $query->orderBy('created_at', 'desc')->paginate(20);
         $actions = HistoriqueDemande::distinct()->pluck('action');
         $statuts = ['EN ATTENTE', 'EN CONTROLE', 'VALIDE', 'REJETE', 'ARCHIVE'];
-        $utilisateurs = User::where('role', 'CONTROLEUR')->orWhere('role', 'CHEF LOT')->get();
+        $utilisateurs = User::controleurs()->orWhere(fn ($q) => $q->chefsBureauControle())->get();
 
         $stats = [
             'total' => HistoriqueDemande::count(),
@@ -446,9 +465,10 @@ class ChefLotController extends Controller
                     $q->orderByDesc('numero_version');
                 },
                 'creePar.structure',
+                'circuitVisas',
             ])
             ->orderByDesc('created_at')
-            ->paginate(15);
+            ->paginate(200);
 
         return view('cheflot.documents-recus', compact('dossiers'));
     }
@@ -468,6 +488,7 @@ class ChefLotController extends Controller
             'versions.affectations.observations.auteur',
             'creePar.structure',
             'transmissions.emetteur',
+            'circuitVisas',
         ])
         ->findOrFail($id);
 
@@ -497,22 +518,39 @@ public function traiterDecision(Request $request, $id)
 
     abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
-    $request->validate([
-        'decision' => 'required|in:valide,a_corriger',
-        'commentaires' => 'nullable|string|max:2000',
-    ], [
-        'decision.required' => 'Veuillez choisir une décision.',
-    ]);
-
+    $circuit = app(\App\Services\CircuitVisaService::class);
     $derniereVersion = $dossier->versions()->orderByDesc('numero_version')->first();
 
     if (!$derniereVersion) {
         return back()->with('error', 'Aucune version trouvée pour ce dossier.');
     }
 
-    $decisionModel = null;
+    abort_unless(
+        $circuit->peutDeciderDirectement($user, $derniereVersion),
+        403,
+        'Votre structure n\'a pas (ou plus) de visa à donner sur cette version du document.'
+    );
 
-    DB::transaction(function () use ($request, $user, $dossier, $derniereVersion, &$decisionModel) {
+    $regles = [
+        'decision' => 'required|in:valide,a_corriger',
+        'commentaires' => 'nullable|string|max:2000',
+    ];
+    // Valider = viser : cachet + signature du validateur obligatoires.
+    if ($request->decision === 'valide') {
+        $regles += \App\Services\VisaService::regles($user);
+    }
+    $request->validate($regles, [
+        'decision.required' => 'Veuillez choisir une décision.',
+    ] + \App\Services\VisaService::messages());
+
+    $decisionModel = null;
+    $etat = null;
+
+    DB::transaction(function () use ($request, $user, $dossier, $derniereVersion, $circuit, &$decisionModel, &$etat) {
+        if ($request->decision === 'valide') {
+            app(\App\Services\VisaService::class)->enregistrer($request, $user, $derniereVersion, 'validation');
+        }
+
         $decisionModel = \App\Models\DocumentDecision::create([
             'document_version_id' => $derniereVersion->id,
             'decision' => $request->decision,
@@ -521,15 +559,10 @@ public function traiterDecision(Request $request, $id)
             'commentaires' => $request->commentaires,
         ]);
 
-        $derniereVersion->update([
-            'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
-        ]);
+        // Chaque structure décide à son niveau ; le document n'est validé que lorsque toutes ont visé.
+        $etat = $circuit->appliquerDecision($derniereVersion, $user, $request->decision, $request->commentaires);
 
-        $dossier->update([
-            'statut' => $request->decision === 'valide' ? 'valide' : 'a_corriger',
-        ]);
-
-        if ($request->decision === 'valide') {
+        if ($etat === 'valide') {
             app(\App\Services\DocumentStampingService::class)->tamponner($derniereVersion);
 
             if ($derniereVersion->fichier_valide_hash) {
@@ -545,15 +578,17 @@ public function traiterDecision(Request $request, $id)
     });
 
     // ============ ENVOI DES EMAILS ============
-    if ($request->decision === 'valide') {
+    if ($etat === 'valide') {
         $this->envoyerEmailsValidation($dossier, $derniereVersion, $user, $decisionModel);
         $message = 'Document validé avec succès. Les parties prenantes ont été notifiées.';
+    } elseif ($etat === 'partiel') {
+        $message = 'Votre visa est enregistré. Le document sera validé lorsque les autres structures auront visé.';
     } else {
         $this->envoyerEmailsCorrection($dossier, $derniereVersion, $user, $decisionModel);
         $message = 'Document renvoyé pour correction. Les parties prenantes ont été notifiées.';
     }
 
-    return redirect()->route('cheflot.documents.recus')->with('success', $message);
+    return redirect()->route(\App\Support\Espaces::nomRoute('cheflot.documents.recus'))->with('success', $message);
 }
 
 /**
@@ -595,6 +630,7 @@ private function getDestinataires(Dossier $dossier): \Illuminate\Support\Collect
 private function envoyerEmailsValidation(Dossier $dossier, DocumentVersion $version, User $controleur, ?\App\Models\DocumentDecision $decision): void
 {
     foreach ($this->getDestinataires($dossier) as $destinataire) {
+        \App\Notifications\Alerte::envoyer($destinataire, 'Document validé : ' . $dossier->titre, route('dossiers.show', $dossier));
         try {
             Mail::to($destinataire->email)
                 ->send(new \App\Mail\DocumentValidatedMail($version, $dossier, $controleur, $decision));
@@ -612,6 +648,7 @@ private function envoyerEmailsValidation(Dossier $dossier, DocumentVersion $vers
 private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $version, User $controleur, ?\App\Models\DocumentDecision $decision): void
 {
     foreach ($this->getDestinataires($dossier) as $destinataire) {
+        \App\Notifications\Alerte::envoyer($destinataire, 'Correction demandée : ' . $dossier->titre, route('dossiers.show', $dossier));
         try {
             Mail::to($destinataire->email)
                 ->send(new \App\Mail\DocumentNeedsCorrectionMail($version, $dossier, $controleur, $decision));
@@ -693,7 +730,14 @@ private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $vers
             return back()->with('error', 'Aucune version trouvée pour ce dossier.');
         }
 
-        DB::transaction(function () use ($request, $user, $dossier, $derniereVersion, $collaborateur) {
+        $circuit = app(\App\Services\CircuitVisaService::class);
+        abort_unless(
+            $circuit->peutDeciderDirectement($user, $derniereVersion),
+            403,
+            'Votre structure n\'a pas (ou plus) de visa à donner sur cette version du document.'
+        );
+
+        DB::transaction(function () use ($request, $user, $dossier, $derniereVersion, $collaborateur, $circuit) {
             $affectation = \App\Models\DocumentAssignment::create([
                 'document_version_id' => $derniereVersion->id,
                 'controleur_id' => $collaborateur->id,
@@ -704,7 +748,11 @@ private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $vers
                 'statut' => 'en_attente',
             ]);
 
-            $dossier->update(['statut' => 'en_analyse']);
+            if ($circuit->aCircuit($derniereVersion)) {
+                $circuit->demarrerAnalyse($derniereVersion, $user);
+            } else {
+                $dossier->update(['statut' => 'en_analyse']);
+            }
 
             try {
                 Mail::to($collaborateur->email)->send(new \App\Mail\DocumentAssignedMail($derniereVersion, $dossier, $user, $affectation));
@@ -714,7 +762,7 @@ private function envoyerEmailsCorrection(Dossier $dossier, DocumentVersion $vers
             }
         });
 
-        return redirect()->route('cheflot.documents.recus.show', $dossier->id)
+        return redirect()->route(\App\Support\Espaces::nomRoute('cheflot.documents.recus.show'), $dossier->id)
             ->with('success', "Document assigné à {$collaborateur->full_name}.");
     }
 }

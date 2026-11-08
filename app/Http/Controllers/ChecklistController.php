@@ -73,7 +73,7 @@ class ChecklistController extends Controller
             'document_version_id' => $documentVersion->id,
         ]);
 
-        $responsablesBC = User::where('role', 'CHEF LOT')->where('actif', true)->get();
+        $responsablesBC = User::chefsBureauControle()->where('actif', true)->get();
         foreach ($responsablesBC as $responsable) {
             $responsable->notify(new DocumentRecu($documentVersion->dossier));
         }

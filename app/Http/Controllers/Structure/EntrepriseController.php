@@ -23,26 +23,28 @@ use Illuminate\Support\Facades\Storage;
 
 class EntrepriseController extends Controller
 {
+    /** Tableau de bord du chef : tous les documents de son entreprise (pas seulement les siens). */
     public function chefDashboard()
     {
         $user = Auth::user();
-        $entrepriseId = $user->structure_id;
+        $base = fn () => Dossier::where('structure_emettrice_id', $user->structure_id);
 
-        $projetsEnCours = Dossier::where('cree_par', $user->id)->where('statut', 'en_cours')->count();
-        $projetsTermines = Dossier::where('cree_par', $user->id)->where('statut', 'valide')->count();
-        $documentsSoumis = DocumentVersion::where('importe_par', $user->id)->count();
-        $documentsValides = DocumentVersion::where('importe_par', $user->id)->where('statut', 'valide')->count();
-        $documentsEnAttente = DocumentVersion::where('importe_par', $user->id)->where('statut', 'en_attente_checklist')->count();
-        $nonConformites = 0;
+        $stats = \App\Support\StatsDossiers::compter($base);
+        [$months, $projetsData] = \App\Support\StatsDossiers::parMois($base);
 
-        $documentsRecents = DocumentVersion::where('importe_par', $user->id)
-            ->with('dossier')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
+        $documentsSoumis = $stats['au_visa'];
+        $documentsValides = $stats['valides'];
+        $documentsEnAttente = $stats['en_attente'];
+        $documentsATransferer = $stats['a_transferer'];
+        $attenteAnciennes = $stats['en_attente_anciens'];
+        $nonConformites = $stats['a_corriger'];
+        $informatifs = $stats['informatifs'];
+        $projetsEnCours = $stats['en_attente'] + $stats['en_analyse'];
+        $projetsTermines = $stats['valides'];
 
-        $months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin'];
-        $projetsData = [4, 6, 8, 7, 10, 12];
+        $repartition = [$stats['valides'], $stats['en_attente'], $stats['en_analyse'], $stats['a_corriger']];
+
+        $documentsRecents = $base()->with(['documentType', 'lot', 'circuitVisas'])->latest()->limit(5)->get();
 
         return view('entreprise.chef.dashboard', compact(
             'user',
@@ -51,34 +53,44 @@ class EntrepriseController extends Controller
             'documentsSoumis',
             'documentsValides',
             'documentsEnAttente',
+            'documentsATransferer',
+            'informatifs',
             'nonConformites',
             'documentsRecents',
             'months',
-            'projetsData'
+            'projetsData',
+            'repartition',
+            'attenteAnciennes'
         ));
     }
 
+    /** Tableau de bord du collaborateur : ses propres documents. */
     public function collaborateurDashboard()
     {
         $user = Auth::user();
+        $base = fn () => Dossier::where('cree_par', $user->id);
 
-        $mesDocuments = DocumentVersion::where('importe_par', $user->id)->count();
-        $documentsEnAttente = DocumentVersion::where('importe_par', $user->id)->where('statut', 'en_attente_checklist')->count();
-        $documentsValides = DocumentVersion::where('importe_par', $user->id)->where('statut', 'valide')->count();
-        $documentsACorriger = DocumentVersion::where('importe_par', $user->id)->where('statut', 'a_corriger')->count();
+        $stats = \App\Support\StatsDossiers::compter($base);
 
-        $mesDocumentsRecents = DocumentVersion::where('importe_par', $user->id)
-            ->with('dossier')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get();
+        $mesDocuments = $stats['total'];
+        $documentsEnAttente = $stats['en_attente'];
+        $documentsEnAnalyse = $stats['en_analyse'];
+        $documentsValides = $stats['valides'];
+        $documentsACorriger = $stats['a_corriger'];
+        $documentsATransferer = $stats['a_transferer'];
+        $informatifs = $stats['informatifs'];
+
+        $mesDocumentsRecents = $base()->with(['documentType', 'circuitVisas'])->latest()->limit(5)->get();
 
         return view('entreprise.collaborateur.dashboard', compact(
             'user',
             'mesDocuments',
             'documentsEnAttente',
+            'documentsEnAnalyse',
             'documentsValides',
             'documentsACorriger',
+            'documentsATransferer',
+            'informatifs',
             'mesDocumentsRecents'
         ));
     }
@@ -90,9 +102,9 @@ class EntrepriseController extends Controller
 
         $documents = DocumentVersion::whereHas('dossier', function($query) use ($user) {
             $query->where('cree_par', $user->id);
-        })->with(['dossier', 'dossier.documentType'])
+        })->with(['dossier', 'dossier.documentType', 'dossier.circuitVisas', 'circuitVisas'])
         ->orderBy('created_at', 'desc')
-        ->paginate(10);
+        ->paginate(200);
 
         $documentTypes = DocumentType::where('actif', true)->get();
         $users = User::where('structure_id', $user->structure_id)->get();
@@ -119,9 +131,9 @@ class EntrepriseController extends Controller
     {
         $user = Auth::user();
         $dossiers = Dossier::where('structure_emettrice_id', $user->structure_id)
-            ->with(['documentType', 'versions'])
+            ->with(['documentType', 'versions', 'circuitVisas'])
             ->orderBy('created_at', 'desc')
-            ->paginate(10);
+            ->paginate(200);
 
         return view('entreprise.dossiers', compact('dossiers'));
     }
@@ -137,9 +149,9 @@ class EntrepriseController extends Controller
 
         $dossiers = Dossier::visiblePar($user)
             ->where('statut', 'archive')
-            ->with(['documentType', 'structureEmettrice', 'lot'])
+            ->with(['documentType', 'structureEmettrice', 'lot', 'circuitVisas'])
             ->latest()
-            ->paginate(15);
+            ->paginate(200);
 
         return view('entreprise.archives', compact('dossiers'));
     }
@@ -195,7 +207,7 @@ class EntrepriseController extends Controller
     public function showDossier($id)
     {
         $user = Auth::user();
-        $dossier = Dossier::with(['documentType', 'versions', 'versions.importePar'])
+        $dossier = Dossier::with(['documentType', 'versions', 'versions.importePar', 'circuitVisas.decideur'])
             ->visiblePar($user)
             ->findOrFail($id);
 
@@ -225,6 +237,9 @@ class EntrepriseController extends Controller
                 'destinataires' => 'nullable|array',
                 'destinataires.*' => 'nullable|array',
                 'destinataires.*.*' => 'exists:users,id',
+                'circuit' => 'nullable|array',
+                'circuit.*' => 'nullable|array',
+                'circuit.*.*' => 'in:' . implode(',', \App\Support\Espaces::TYPES_VISA),
                 'commentaire' => 'nullable|array',
                 'commentaire.*' => 'nullable|string',
             ]);
@@ -255,10 +270,27 @@ class EntrepriseController extends Controller
         $nbValidation = 0;
         $nbInformatif = 0;
 
+        // Un responsable envoie directement chez les destinataires, en visant chaque document
+        // (cachet + signature). Un collaborateur, lui, soumet à son chef, qui visera au transfert.
+        $estChef = $user->isResponsableOrganisme();
+        $visaService = app(\App\Services\VisaService::class);
+        $circuitService = app(\App\Services\CircuitVisaService::class);
+
+        if ($estChef) {
+            $request->validate(\App\Services\VisaService::regles($user), \App\Services\VisaService::messages());
+        }
+        $visasCrees = 0;
+
         // Validation manuelle destinataires
         foreach ($request->file('fichiers') as $index => $file) {
             $mode = $request->mode[$index];
             $destinatairesDoc = $request->destinataires[$index] ?? [];
+
+            if ($mode === 'validation' && empty(\App\Services\CircuitVisaService::normaliser($request->circuit[$index] ?? []))) {
+                return back()->withErrors([
+                    'circuit' => "Document " . ($index + 1) . " : veuillez choisir au moins une structure dans le circuit de visa."
+                ])->withInput();
+            }
 
             if ($mode === 'simple' && empty($destinatairesDoc)) {
                 Log::warning("Document $index sans destinataire en mode simple");
@@ -269,7 +301,7 @@ class EntrepriseController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $user, &$nbDocuments, &$nbValidation, &$nbInformatif) {
+            DB::transaction(function () use ($request, $user, $estChef, $visaService, $circuitService, &$visasCrees, &$nbDocuments, &$nbValidation, &$nbInformatif) {
                 foreach ($request->file('fichiers') as $index => $file) {
                     Log::info("Traitement document index=$index", [
                         'original_name' => $file->getClientOriginalName(),
@@ -281,6 +313,7 @@ class EntrepriseController extends Controller
                     $destinatairesDoc = $request->destinataires[$index] ?? [];
                     $commentaireDoc = $request->commentaire[$index] ?? null;
                     $documentTypeId = $request->document_type_id[$index];
+                    $typesVisa = \App\Services\CircuitVisaService::normaliser($request->circuit[$index] ?? []);
 
                     // ✅ FIX : Stockage du fichier avant toute autre opération
                     $path = $file->store('documents/entreprise', 'public');
@@ -323,7 +356,27 @@ class EntrepriseController extends Controller
 
                     Log::info("Version créée index=$index", ['version_id' => $version->id, 'statut' => 'soumis']);
 
-                    if ($mode === 'validation') {
+                    if ($estChef) {
+                        // Visa du responsable : enregistré sur le document avant tout envoi
+                        $visaService->enregistrer($request, $user, $version, 'envoi', $mode === 'validation' ? implode(',', $typesVisa) : 'destinataires', $visasCrees === 0);
+                        $visasCrees++;
+                        app(\App\Services\DocumentStampingService::class)->viser($version);
+                    }
+
+                    if ($mode === 'validation' && $estChef) {
+                        // Circuit de visa : le responsable envoie directement, et en même temps, à toutes
+                        // les structures choisies ; chacune vise à son niveau.
+                        $transmission = $circuitService->ouvrir($dossier, $version, $user, $typesVisa, $commentaireDoc);
+
+                        foreach ($destinatairesDoc as $destinataireId) {
+                            TransmissionDestinataire::create([
+                                'document_transmission_id' => $transmission->id,
+                                'user_id' => $destinataireId,
+                            ]);
+                        }
+
+                        $nbValidation++;
+                    } elseif ($mode === 'validation') {
                         // Le document ne part JAMAIS directement à un bureau externe.
                         // Il va toujours d'abord au chef de sa propre entreprise, qui décidera
                         // ensuite (via "Documents à transférer") vers quelle structure l'envoyer.
@@ -361,12 +414,15 @@ class EntrepriseController extends Controller
                                 } catch (\Exception $e) {
                                     Log::error('Erreur envoi email vers chef entreprise: ' . $e->getMessage());
                                 }
+                                \App\Notifications\Alerte::envoyer($chefEntreprise, $user->full_name . ' a soumis un document à transférer : ' . $dossier->titre, route('entreprise.documents.a-transferer'));
                             }
                         }
 
                         $dossier->update([
                             'statut' => 'en_cours',
                             'necessite_transfert_chef' => true,
+                            // Structures souhaitées par le collaborateur : proposées au chef, qui décide du circuit.
+                            'structure_cible' => implode(',', array_map([\App\Support\Espaces::class, 'sigle'], $typesVisa)),
                         ]);
 
                         $nbValidation++;
@@ -393,6 +449,7 @@ class EntrepriseController extends Controller
                                 } catch (\Exception $e) {
                                     Log::error('Erreur envoi email transmission: ' . $e->getMessage());
                                 }
+                                \App\Notifications\Alerte::envoyer($destinataire, 'Document reçu de ' . $user->full_name . ' : ' . $dossier->titre, route('dossiers.show', $dossier));
                             }
                         }
 
@@ -465,6 +522,7 @@ class EntrepriseController extends Controller
         $dossier = Dossier::where('cree_par', $user->id)->with('versions')->findOrFail($id);
 
         abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être supprimé.');
+        abort_if($dossier->aEteVise(), 403, 'Ce document a déjà été validé ou visé : il ne peut plus être supprimé.');
 
         foreach ($dossier->versions as $version) {
             if ($version->fichier_chemin && Storage::disk('public')->exists($version->fichier_chemin)) {
@@ -608,47 +666,23 @@ class EntrepriseController extends Controller
                 'commentaire' => $request->commentaire,
             ]);
 
-            // Retransmet automatiquement au Bureau de Contrôle
-            $chefBC = User::whereHas('structure', function ($query) {
-                $query->where('type', 'bureau_controle');
-            })->where('categorie_role', 'responsable_organisme')->first();
+            // Retransmet automatiquement le nouveau fichier aux mêmes structures que le circuit de visa précédent
+            // (le Bureau de Contrôle seul pour un ancien document).
+            $circuitService = app(\App\Services\CircuitVisaService::class);
+            $circuitService->rouvrir($dossier, $nouvelleVersion, $user, $request->commentaire);
 
-            $transmission = DocumentTransmission::create([
-                'dossier_id' => $dossier->id,
-                'document_version_id' => $nouvelleVersion->id,
-                'emetteur_id' => $user->id,
-                'mode' => 'diffusion_validation',
-                'commentaire' => $request->commentaire,
-                'date_transmission' => now(),
-            ]);
-
-            if ($chefBC) {
-                TransmissionDestinataire::create([
-                    'document_transmission_id' => $transmission->id,
-                    'user_id' => $chefBC->id,
-                ]);
-
-                try {
-                    Mail::to($chefBC->email)->send(new \App\Mail\DocumentResubmittedMail($nouvelleVersion, $dossier, $user));
-                    Log::info('Email de correction envoyé au BC pour le dossier ' . $dossier->id);
-                } catch (\Exception $e) {
-                    Log::error('Erreur envoi email correction: ' . $e->getMessage());
-                }
-            }
-
-            // Notifie aussi les collaborateurs du BC qui avaient analysé une version précédente
+            // Notifie aussi les collaborateurs qui avaient analysé une version précédente
             $collaborateurs = User::whereIn('id', \App\Models\DocumentAssignment::whereIn(
                     'document_version_id',
                     $dossier->versions()->where('id', '!=', $nouvelleVersion->id)->pluck('id')
                 )->pluck('controleur_id'))
-                ->when($chefBC, fn($q) => $q->where('id', '!=', $chefBC->id))
                 ->whereNotNull('email')
                 ->get();
 
             foreach ($collaborateurs as $collaborateur) {
                 try {
                     Mail::to($collaborateur->email)->send(new \App\Mail\DocumentResubmittedMail($nouvelleVersion, $dossier, $user));
-                    Log::info('Email de correction envoyé au collaborateur BC ' . $collaborateur->email);
+                    Log::info('Email de correction envoyé au collaborateur ' . $collaborateur->email);
                 } catch (\Exception $e) {
                     Log::error('Erreur envoi email correction collaborateur: ' . $e->getMessage());
                 }
@@ -699,13 +733,14 @@ class EntrepriseController extends Controller
             ->where('necessite_transfert_chef', true)
             ->with(['documentType', 'versions', 'creePar'])
             ->orderByDesc('created_at')
-            ->paginate(10);
+            ->paginate(200);
 
         return view('entreprise.documents-a-transferer', compact('dossiers'));
     }
 
     /**
-     * Transfère un dossier vers une structure externe (Bureau de Contrôle ou Bureau d'Études)
+     * Ouvre le circuit de visa d'un dossier soumis par un collaborateur : le chef d'entreprise vise
+     * le document puis l'envoie, en même temps, à toutes les structures dont le visa est demandé.
      */
     public function transfererDossier(Request $request, $id)
     {
@@ -724,59 +759,41 @@ class EntrepriseController extends Controller
         abort_if($dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
 
         $request->validate([
-            'structure_cible' => 'required|in:bureau_controle,bureau_etudes,maitre_ouvrage',
-        ], [
-            'structure_cible.required' => 'Veuillez choisir une structure de destination.',
-        ]);
+            'structures' => 'required|array|min:1',
+            'structures.*' => 'in:' . implode(',', \App\Support\Espaces::TYPES_VISA),
+        ] + \App\Services\VisaService::regles($user), [
+            'structures.required' => 'Veuillez choisir au moins une structure dans le circuit de visa.',
+            'structures.min' => 'Veuillez choisir au moins une structure dans le circuit de visa.',
+        ] + \App\Services\VisaService::messages());
 
-        $structureCible = $request->structure_cible;
+        $types = \App\Services\CircuitVisaService::normaliser($request->structures);
 
-        $chefCible = User::whereHas('structure', function ($q) use ($structureCible) {
-                $q->where('type', $structureCible);
-            })->where('categorie_role', 'responsable_organisme')->first();
-
-        if (!$chefCible) {
-            return back()->with('error', 'Aucun responsable trouvé pour cette structure. Contactez l\'administrateur.');
+        $circuitService = app(\App\Services\CircuitVisaService::class);
+        $manquantes = array_filter($types, fn ($type) => !$circuitService->chefDe($type));
+        if ($manquantes) {
+            return back()->with('error', 'Aucun responsable trouvé pour : ' . implode(', ', array_map([\App\Support\Espaces::class, 'nom'], $manquantes)) . '. Contactez l\'administrateur.');
         }
 
         $derniereVersion = $dossier->versions()->orderByDesc('numero_version')->first();
+        abort_unless($derniereVersion, 422, 'Ce dossier ne contient aucune version à transférer.');
 
-        DB::transaction(function () use ($dossier, $derniereVersion, $chefCible, $user, $structureCible) {
-            $transmission = DocumentTransmission::create([
-                'dossier_id' => $dossier->id,
-                'document_version_id' => $derniereVersion?->id,
-                'emetteur_id' => $user->id,
-                'mode' => 'validation',
-                'commentaire' => null,
-                'date_transmission' => now(),
-            ]);
+        // Visa du chef émetteur : cachet + signature enregistrés sur le document avant son envoi.
+        // Un échec (cachet/signature invalide) lève une ValidationException : rien n'est transféré.
+        $visaService = app(\App\Services\VisaService::class);
+        $visaService->enregistrer($request, $user, $derniereVersion, 'envoi', implode(',', $types));
+        $visaApplique = app(\App\Services\DocumentStampingService::class)->viser($derniereVersion);
 
-            TransmissionDestinataire::create([
-                'document_transmission_id' => $transmission->id,
-                'user_id' => $chefCible->id,
-                // La transmission cible aussi la structure entière : tout membre
-                // du Bureau de Contrôle (ou d'Études, ou MO) destinataire doit
-                // pouvoir consulter le dossier, pas seulement son responsable.
-                'structure_id' => $chefCible->structure_id,
-            ]);
-
-            try {
-                Mail::to($chefCible->email)->send(new DocumentForControlMail($derniereVersion, $dossier, $user));
-                Log::info('Email de transfert externe envoyé à ' . $chefCible->email);
-            } catch (\Exception $e) {
-                Log::error('Erreur envoi email transfert externe: ' . $e->getMessage());
-            }
-
-            $dossier->update([
-                'necessite_transfert_chef' => false,
-                'structure_cible' => $structureCible,
-                'statut' => 'en_cours',
-            ]);
+        DB::transaction(function () use ($circuitService, $dossier, $derniereVersion, $user, $types) {
+            $circuitService->ouvrir($dossier, $derniereVersion, $user, $types);
         });
 
-        $label = $structureCible === 'bureau_controle' ? 'Bureau de Contrôle' : 'Bureau d\'Études';
+        $noms = implode(', ', array_map([\App\Support\Espaces::class, 'nom'], $types));
 
-        return redirect()->route('entreprise.documents.a-transferer')
-            ->with('success', "Document transféré avec succès au $label.");
+        $message = "Document visé et envoyé pour visa à : $noms.";
+        if (!$visaApplique) {
+            $message .= ' Le visa est enregistré, mais il n\'a pas pu être inscrit sur le fichier (format non pris en charge ou PDF illisible).';
+        }
+
+        return redirect()->route('entreprise.documents.a-transferer')->with('success', $message);
     }
 }

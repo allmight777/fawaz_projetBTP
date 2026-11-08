@@ -1,476 +1,138 @@
-@extends('layouts.controleur')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Analyse du document')
 
 @section('content')
-<style>
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .btn-back {
-        background: #e5e7eb;
-        color: #333;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.25s ease;
-    }
-    .btn-back:hover { background: #d1d5db; }
-
-    .card {
-        background: white;
-        border-radius: 20px;
-        padding: 24px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
-    .card h3 {
-        font-size: 15px;
-        font-weight: 700;
-        color: #064e3b;
-        margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .card h3 i { color: #047857; }
-
-    .card-title-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 14px;
-        flex-wrap: wrap;
-    }
-    .card-title-row h3 {
-        margin-bottom: 0;
-    }
-
-    .btn-check-all {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: #ecfdf5;
-        color: #047857;
-        border: 1px solid #a7f3d0;
-        padding: 8px 16px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        transition: all 0.25s ease;
-        user-select: none;
-        letter-spacing: 0.2px;
-    }
-    .btn-check-all:hover {
-        background: #047857;
-        color: #ffffff;
-        border-color: #047857;
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(4,120,87,0.25);
-    }
-    .btn-check-all i { font-size: 12px; }
-
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid #f3f4f6;
-        font-size: 14px;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-row .label { color: #6b7280; }
-    .info-row .value { font-weight: 600; color: #064e3b; }
-
-    .btn-preview {
-        color: #7c3aed;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        transition: all 0.3s ease;
-        margin-right: 12px;
-    }
-    .btn-preview:hover { color: #5b21b6; gap: 8px; }
-
-    .btn-download {
-        color: #047857;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 13px;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        transition: all 0.3s ease;
-    }
-    .btn-download:hover { color: #064e3b; gap: 8px; }
-
-    .checklist-item {
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        padding: 12px 14px;
-        border-radius: 10px;
-        border-bottom: 1px solid #f3f4f6;
-        transition: background 0.2s ease;
-    }
-    .checklist-item:hover { background: #f9fafb; }
-    .checklist-item:last-child { border-bottom: none; }
-    .checklist-item input[type="checkbox"] {
-        width: 20px; height: 20px;
-        accent-color: #047857;
-        cursor: pointer;
-        flex-shrink: 0;
-    }
-    .checklist-item .item-label { flex: 1; font-size: 14px; color: #333; }
-    .checklist-item .item-badge {
-        font-size: 11px;
-        padding: 3px 10px;
-        border-radius: 12px;
-        flex-shrink: 0;
-    }
-    .item-badge.obligatoire { background: #fee2e2; color: #dc2626; }
-    .item-badge.facultatif { background: #f3f4f6; color: #6b7280; }
-
-    .btn-save {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        background: linear-gradient(135deg, #2563eb, #1d4ed8);
-        color: white;
-        border: none;
-        padding: 12px 26px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-        letter-spacing: 0.2px;
-        cursor: pointer;
-        margin-top: 16px;
-        transition: all 0.25s ease;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-    }
-    .btn-save:hover {
-        background: linear-gradient(135deg, #1d4ed8, #1e40af);
-        transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(37,99,235,0.35);
-    }
-    .btn-save i { font-size: 13px; }
-
-    .form-actions {
-        display: flex;
-        justify-content: center;
-        margin-top: 4px;
-    }
-
-    .observations-list { margin-bottom: 16px; }
-    .observation-item {
-        background: #f9fafb;
-        border-radius: 10px;
-        padding: 12px 16px;
-        margin-bottom: 10px;
-        border-left: 3px solid #047857;
-    }
-    .observation-item .obs-meta {
-        font-size: 11px;
-        color: #6b7280;
-        margin-bottom: 4px;
-        display: flex;
-        justify-content: space-between;
-    }
-    .observation-item p { font-size: 13px; color: #333; }
-
-    .decision-buttons { display: flex; gap: 12px; margin-bottom: 16px; }
-    .decision-option {
-        flex: 1;
-        border: 2px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 16px;
-        cursor: pointer;
-        text-align: center;
-        transition: all 0.2s ease;
-    }
-    .decision-option:hover { border-color: #047857; background: #f0fdf4; }
-    .decision-option input[type="radio"] { display: none; }
-    .decision-option i { font-size: 22px; display: block; margin-bottom: 8px; }
-    .decision-option.valide i { color: #059669; }
-    .decision-option.corriger i { color: #dc2626; }
-    .decision-option:has(input[type="radio"]:checked) {
-        border-color: #047857;
-        background: #f0fdf4;
-        box-shadow: 0 0 0 3px rgba(4,120,87,0.1);
-    }
-    .decision-label { font-size: 13px; font-weight: 600; color: #333; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label { display: block; font-weight: 600; font-size: 13px; color: #333; margin-bottom: 6px; }
-    .form-group textarea,
-    .form-group select {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1px solid #e0e8f0;
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: inherit;
-        background: white;
-    }
-    .form-group textarea {
-        min-height: 90px;
-        resize: vertical;
-    }
-    .form-group textarea:focus,
-    .form-group select:focus {
-        outline: none;
-        border-color: #047857;
-        box-shadow: 0 0 0 3px rgba(4,120,87,0.1);
-    }
-    .error-text { color: #dc2626; font-size: 12px; margin-top: 6px; }
-
-    .btn-submit {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        background: linear-gradient(135deg, #047857, #064e3b);
-        color: white;
-        border: none;
-        padding: 14px 30px;
-        border-radius: 12px;
-        font-weight: 600;
-        font-size: 14px;
-        letter-spacing: 0.2px;
-        cursor: pointer;
-        transition: all 0.25s ease;
-        box-shadow: 0 2px 10px rgba(4,120,87,0.25);
-    }
-    .btn-submit:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(4,120,87,0.4);
-    }
-    .btn-submit i { font-size: 14px; }
-
-    .already-done {
-        padding: 16px;
-        background: #f0fdf4;
-        border: 1px solid #bbf7d0;
-        border-radius: 10px;
-        color: #064e3b;
-        font-size: 14px;
-    }
-
-    @media (max-width: 640px) {
-        .card-title-row { flex-direction: column; align-items: flex-start; }
-        .decision-buttons { flex-direction: column; }
-    }
-</style>
-
 @php
     $version = $documentAssignment->documentVersion;
     $dossier = $version->dossier;
     $checklistItems = $dossier->documentType->checklistItems ?? collect();
     $reponsesMap = $version->checklistReponses->keyBy('checklist_item_id');
     $dejaTermine = $documentAssignment->statut === 'termine';
+    $nbCochees = $checklistItems->filter(fn ($i) => optional($reponsesMap->get($i->id))->valeur)->count();
 @endphp
 
-@if($documentAssignment->date_limite && !$dejaTermine)
-<div class="card" style="text-align:center;">
-    <h3 style="justify-content:center;"><i class="fas fa-hourglass-half"></i> Délai de traitement</h3>
-    <x-delai-gauge :assignment="$documentAssignment" variant="circle" />
+<div class="page-header">
+    <h1>Analyse · {{ $dossier->identifiant_affiche ?? '#'.$dossier->id }}</h1>
+    <a href="{{ sroute('controleur.affectations.index') }}" class="btn-back">Retour</a>
 </div>
-@endif
 
-<div class="card">
-    <h3><i class="fas fa-folder"></i> Informations du dossier</h3>
-    <div class="info-row">
-        <span class="label">Identifiant</span>
-        <span class="value">{{ $dossier->identifiant_affiche ?? '#'.$dossier->id }}</span>
+@if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
+@if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
+@if($errors->any())<div class="alert alert-error">{{ $errors->first() }}</div>@endif
+
+<div class="an-top">
+    <div class="card">
+        <h3 class="card-title">Dossier à analyser</h3>
+        <div class="an-grid">
+            <div><small>Titre</small><strong>{{ $dossier->titre }}</strong></div>
+            <div><small>Type de document</small><strong>{{ $dossier->documentType->nom ?? '—' }}</strong></div>
+            <div><small>Version</small><strong>V{{ $version->numero_version }} · {{ $version->nom_affiche }}</strong></div>
+            @if($documentAssignment->specialite)
+                <div><small>Spécialité demandée</small><strong>{{ $documentAssignment->specialite }}</strong></div>
+            @endif
+        </div>
+        <div class="an-files">
+            <a href="{{ sroute('controleur.affectations.apercu', ['documentAssignment' => $documentAssignment->id, 'dossier' => $dossier->id, 'version' => $version->id]) }}" target="_blank" class="btn">Ouvrir l'aperçu</a>
+            <a href="{{ route('dossiers.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn">Télécharger</a>
+        </div>
     </div>
-    <div class="info-row">
-        <span class="label">Titre</span>
-        <span class="value">{{ $dossier->titre }}</span>
-    </div>
-    <div class="info-row">
-        <span class="label">Type de document</span>
-        <span class="value">{{ $dossier->documentType->nom ?? '-' }}</span>
-    </div>
-    <div class="info-row">
-        <span class="label">Version</span>
-        <span class="value">V{{ $version->numero_version }} — {{ $version->nom_affiche }}</span>
-    </div>
-    @if($documentAssignment->specialite)
-    <div class="info-row">
-        <span class="label">Spécialité demandée</span>
-        <span class="value">{{ $documentAssignment->specialite }}</span>
+
+    @if($documentAssignment->date_limite && !$dejaTermine)
+        <div class="card an-delai">
+            <h3 class="card-title">Délai de traitement</h3>
+            <x-delai-gauge :assignment="$documentAssignment" variant="circle" />
+        </div>
+    @endif
+</div>
+
+{{-- Un seul formulaire : « Marquer mon analyse comme terminée » enregistre tout. --}}
+<form action="{{ sroute('controleur.affectations.terminer', $documentAssignment) }}" method="POST" id="analyseForm" class="an-form">
+    @csrf
+
+    @if($checklistItems->count() > 0)
+    <div class="card">
+        <div class="an-bar">
+            <h3 class="card-title" style="margin:0;">Vérifications</h3>
+            <div class="an-progress">
+                <span><b id="anCount">{{ $nbCochees }}</b> / {{ $checklistItems->count() }} validées</span>
+                <div class="an-meter"><i id="anMeter" style="width: {{ $checklistItems->count() ? round($nbCochees / $checklistItems->count() * 100) : 0 }}%"></i></div>
+            </div>
+            @unless($dejaTermine)
+                <button type="button" class="btn" id="btnCheckAll">Tout cocher</button>
+            @endunless
+        </div>
+
+        <div class="an-items">
+            @foreach($checklistItems as $item)
+                @php $reponse = $reponsesMap->get($item->id); @endphp
+                <label class="an-item">
+                    <input type="checkbox" class="checklist-box" name="reponses[{{ $item->id }}]" value="1" {{ $reponse && $reponse->valeur ? 'checked' : '' }} {{ $dejaTermine ? 'disabled' : '' }}>
+                    <span class="an-box"></span>
+                    <span class="an-label">{{ $item->libelle }}</span>
+                    @if($item->obligatoire)<em class="an-req">Obligatoire</em>@endif
+                </label>
+            @endforeach
+        </div>
     </div>
     @endif
-    <div class="info-row">
-        <span class="label">Fichier</span>
-        <div>
-            <a href="{{ route('controleur.affectations.apercu', ['documentAssignment' => $documentAssignment->id, 'dossier' => $dossier->id, 'version' => $version->id]) }}" target="_blank" class="btn-preview">
-                <i class="fas fa-eye"></i> Aperçu
-            </a>
-            <a href="{{ route('dossiers.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn-download">
-                <i class="fas fa-download"></i> Télécharger
-            </a>
+
+    @if($documentAssignment->observations->count() > 0)
+    <div class="card">
+        <h3 class="card-title">Mes observations précédentes</h3>
+        <div class="ver-list">
+            @foreach($documentAssignment->observations as $obs)
+                <blockquote class="ver-quote {{ $obs->type === 'non_conformite' ? 'nc' : '' }}">
+                    <div class="ver-quote-head">
+                        <span>{{ $obs->type === 'non_conformite' ? 'Non-conformité' : 'Observation' }}</span>
+                        <small>{{ $obs->created_at->format('d/m/Y H:i') }}</small>
+                    </div>
+                    <p>{{ $obs->contenu }}</p>
+                </blockquote>
+            @endforeach
         </div>
     </div>
-</div>
+    @endif
 
-@if($checklistItems->count() > 0)
-<div class="card">
-    <div class="card-title-row">
-        <h3><i class="fas fa-list-check"></i> Vérifications</h3>
-        @unless($dejaTermine)
-            <button type="button" class="btn-check-all" id="btnCheckAll">
-                <i class="fas fa-check-double"></i> Tout cocher
-            </button>
-        @endunless
+    @unless($dejaTermine)
+    <div class="card">
+        <h3 class="card-title">Observation</h3>
+        <p class="an-help">Facultative : si vous la renseignez, elle est envoyée avec votre fin d'analyse.</p>
+        <div class="an-types">
+            <label class="an-type"><input type="radio" name="type" value="observation" {{ old('type', 'observation') === 'observation' ? 'checked' : '' }}><span>Observation</span></label>
+            <label class="an-type nc"><input type="radio" name="type" value="non_conformite" {{ old('type') === 'non_conformite' ? 'checked' : '' }}><span>Non-conformité</span></label>
+        </div>
+        <textarea name="contenu" rows="5" class="an-text" placeholder="Détaillez votre observation…">{{ old('contenu') }}</textarea>
     </div>
-    <form action="{{ route('controleur.affectations.reponses', $documentAssignment) }}" method="POST">
-        @csrf
-        @foreach($checklistItems as $item)
-        @php $reponse = $reponsesMap->get($item->id); @endphp
-        <div class="checklist-item">
-            <input type="checkbox" class="checklist-box" name="reponses[{{ $item->id }}]" value="1" {{ $reponse && $reponse->valeur ? 'checked' : '' }} {{ $dejaTermine ? 'disabled' : '' }}>
-            <span class="item-label">{{ $item->libelle }}</span>
-            <span class="item-badge {{ $item->obligatoire ? 'obligatoire' : 'facultatif' }}">
-                {{ $item->obligatoire ? 'Obligatoire' : 'Facultatif' }}
-            </span>
-        </div>
-        @endforeach
 
-        @unless($dejaTermine)
-        <div class="form-actions">
-            <button type="submit" class="btn-save"><i class="fas fa-save"></i> Enregistrer les vérifications</button>
-        </div>
-        @endunless
-    </form>
-</div>
-@endif
-
-@unless($dejaTermine)
-<div class="card">
-    <h3><i class="fas fa-comment-medical"></i> Ajouter une observation</h3>
-    <form action="{{ route('controleur.affectations.observations.store', $documentAssignment) }}" method="POST">
-        @csrf
-
-        <div class="form-group">
-            <label>Type</label>
-            <select name="type" required>
-                <option value="observation">Observation</option>
-                <option value="non_conformite">Non-conformité</option>
-            </select>
-            @error('type')<div class="error-text"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>@enderror
-        </div>
-
-        <div class="form-group">
-            <label>Contenu</label>
-            <textarea name="contenu" required placeholder="Détaillez votre observation..."></textarea>
-            @error('contenu')<div class="error-text"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>@enderror
-        </div>
-
-        <div class="form-actions">
-            <button type="submit" class="btn-save"><i class="fas fa-paper-plane"></i> Envoyer l'observation</button>
-        </div>
-    </form>
-</div>
-@endunless
-
-@if($documentAssignment->observations->count() > 0)
-<div class="card">
-    <h3><i class="fas fa-comment-dots"></i> Observations</h3>
-    <div class="observations-list">
-        @foreach($documentAssignment->observations as $obs)
-        <div class="observation-item">
-            <div class="obs-meta">
-                <span>{{ $obs->auteur->full_name ?? '-' }}</span>
-                <span>{{ $obs->created_at->format('d/m/Y H:i') }}</span>
-            </div>
-            <p>{{ $obs->contenu }}</p>
-        </div>
-        @endforeach
+    <div class="an-final">
+        <p>Vous ne validez ni ne rejetez le document : la décision appartient au responsable du Bureau de Contrôle. Ce bouton enregistre vos vérifications, envoie votre observation et clôture votre analyse.</p>
+        <button type="submit" class="an-submit">Marquer mon analyse comme terminée</button>
     </div>
-</div>
-@endif
-
-<div class="card">
-    <h3><i class="fas fa-flag-checkered"></i> Fin d'analyse</h3>
-
-    @if($dejaTermine)
-        <div class="already-done">
-            <i class="fas fa-check-circle"></i> Votre analyse est terminée. Le responsable du Bureau de Contrôle consolidera les observations et prendra la décision finale.
-        </div>
     @else
-        <p style="font-size:13px; color:#6b7280; margin-bottom:14px;">
-            Une fois vos vérifications et observations transmises, marquez votre analyse comme terminée. Vous ne validez ni ne rejetez pas le document : la décision finale appartient au responsable du Bureau de Contrôle.
-        </p>
-
-        @if(session('error'))
-        <div style="background:#fee2e2; color:#dc2626; padding:10px 14px; border-radius:8px; margin-bottom:14px; font-size:13px;">
-            <i class="fas fa-exclamation-circle"></i> {{ session('error') }}
-        </div>
-        @endif
-
-        <form action="{{ route('controleur.affectations.terminer', $documentAssignment) }}" method="POST">
-            @csrf
-            <div class="form-actions">
-                <button type="submit" class="btn-submit"><i class="fas fa-flag-checkered"></i> Marquer mon analyse comme terminée</button>
-            </div>
-        </form>
-    @endif
-</div>
+    <div class="alert alert-info">Votre analyse est terminée. Le responsable du Bureau de Contrôle consolidera les observations et prendra la décision finale.</div>
+    @endunless
+</form>
 
 <script>
     (function () {
-        var btn = document.getElementById('btnCheckAll');
-        if (!btn) return;
+        var boxes = Array.prototype.slice.call(document.querySelectorAll('.checklist-box'));
+        var count = document.getElementById('anCount'), meter = document.getElementById('anMeter'), btn = document.getElementById('btnCheckAll');
+        if (!boxes.length) return;
 
-        var boxes = document.querySelectorAll('.checklist-box:not([disabled])');
-        if (boxes.length === 0) return;
-
-        var label = btn.querySelector('i');
-        var textNode = btn.childNodes[btn.childNodes.length - 1];
-
-        function allChecked() {
-            return Array.prototype.every.call(boxes, function (b) { return b.checked; });
+        function maj() {
+            var n = boxes.filter(function (b) { return b.checked; }).length;
+            count.textContent = n;
+            meter.style.width = Math.round(n / boxes.length * 100) + '%';
+            if (btn) btn.textContent = n === boxes.length ? 'Tout décocher' : 'Tout cocher';
         }
-
-        function updateButton() {
-            if (allChecked()) {
-                if (textNode) textNode.nodeValue = ' Tout décocher';
-                if (label) label.className = 'fas fa-xmark';
-            } else {
-                if (textNode) textNode.nodeValue = ' Tout cocher';
-                if (label) label.className = 'fas fa-check-double';
-            }
-        }
-
-        btn.addEventListener('click', function () {
-            var target = !allChecked();
-            boxes.forEach(function (b) { b.checked = target; });
-            updateButton();
+        boxes.forEach(function (b) { b.addEventListener('change', maj); });
+        if (btn) btn.addEventListener('click', function () {
+            var cible = !boxes.every(function (b) { return b.checked; });
+            boxes.forEach(function (b) { if (!b.disabled) b.checked = cible; });
+            maj();
         });
-
-        boxes.forEach(function (b) {
-            b.addEventListener('change', updateButton);
-        });
-
-        updateButton();
+        maj();
     })();
 </script>
 @endsection

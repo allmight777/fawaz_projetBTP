@@ -26,6 +26,8 @@ class User extends Authenticatable
     const ROLE_BUREAU_ETUDES_COLLABORATEUR = 'BUREAU_ETUDES_COLLABORATEUR';
     const ROLE_MAITRE_OUVRAGE_CHEF = 'MAITRE_OUVRAGE_CHEF';
     const ROLE_MAITRE_OUVRAGE_COLLABORATEUR = 'MAITRE_OUVRAGE_COLLABORATEUR';
+    const ROLE_MAITRE_OEUVRE_CHEF = 'MAITRE_OEUVRE_CHEF';
+    const ROLE_MAITRE_OEUVRE_COLLABORATEUR = 'MAITRE_OEUVRE_COLLABORATEUR';
 
     // Catégories de rôle
     const CATEGORIE_RESPONSABLE = 'responsable_organisme';
@@ -50,6 +52,7 @@ class User extends Authenticatable
         'fonction',
         'specialite',
         'raison',
+        'cachet_chemin',
     ];
 
     protected static function booted(): void
@@ -134,14 +137,39 @@ class User extends Authenticatable
         return $this->role === self::ROLE_ADMIN;
     }
 
+    /** Chef du Bureau de Contrôle : rôle historique « CHEF LOT » ou responsable d'un bureau de contrôle. */
     public function isChefLot(): bool
     {
-        return $this->role === self::ROLE_CHEF_LOT;
+        return in_array($this->role, [self::ROLE_CHEF_LOT, self::ROLE_BUREAU_CONTROLE_CHEF], true);
     }
 
+    /** Contrôleur : rôle historique « CONTROLEUR » ou collaborateur d'un bureau de contrôle. */
     public function isControleur(): bool
     {
-        return $this->role === self::ROLE_CONTROLEUR;
+        return in_array($this->role, [self::ROLE_CONTROLEUR, self::ROLE_BUREAU_CONTROLE_COLLABORATEUR], true);
+    }
+
+    public function scopeChefsBureauControle($query)
+    {
+        return $query->whereIn('role', [self::ROLE_CHEF_LOT, self::ROLE_BUREAU_CONTROLE_CHEF]);
+    }
+
+    public function scopeControleurs($query)
+    {
+        return $query->whereIn('role', [self::ROLE_CONTROLEUR, self::ROLE_BUREAU_CONTROLE_COLLABORATEUR]);
+    }
+
+    /** Collaborateurs actifs d'une structure visante (BC, BE ou MOE) : les « contrôleurs » à qui le chef affecte. */
+    public function scopeCollaborateursVisa($query, string $type)
+    {
+        return $query->where(function ($q) use ($type) {
+            $q->where(fn ($s) => $s->where('categorie_role', self::CATEGORIE_COLLABORATEUR)
+                ->whereHas('structure', fn ($st) => $st->where('type', $type)));
+
+            if ($type === 'bureau_controle') {
+                $q->orWhere(fn ($s) => $s->whereNull('structure_id')->where('role', self::ROLE_CONTROLEUR));
+            }
+        });
     }
 
     // Vérifications pour les nouveaux rôles
@@ -183,6 +211,63 @@ class User extends Authenticatable
     public function isMaitreOuvrageCollaborateur(): bool
     {
         return $this->role === self::ROLE_MAITRE_OUVRAGE_COLLABORATEUR;
+    }
+
+    public function isMaitreOeuvreChef(): bool
+    {
+        return $this->role === self::ROLE_MAITRE_OEUVRE_CHEF;
+    }
+
+    public function isMaitreOeuvreCollaborateur(): bool
+    {
+        return $this->role === self::ROLE_MAITRE_OEUVRE_COLLABORATEUR;
+    }
+
+    /**
+     * Type de structure visante (bureau_controle | bureau_etudes | maitre_oeuvre) de l'utilisateur,
+     * ou null s'il n'appartient à aucune des trois. Les rôles historiques « CHEF LOT » et
+     * « CONTROLEUR » (sans structure) sont des membres du Bureau de Contrôle.
+     */
+    public function structureVisa(): ?string
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        $type = $this->structure?->type;
+        if (in_array($type, \App\Support\Espaces::TYPES_VISA, true)) {
+            return $type;
+        }
+
+        return in_array($this->role, [self::ROLE_CHEF_LOT, self::ROLE_CONTROLEUR], true) ? 'bureau_controle' : null;
+    }
+
+    /** Vrai pour le chef (responsable) d'une des structures qui donnent leur visa : BC, BE ou MOE. */
+    public function estChefVisa(): bool
+    {
+        return $this->structureVisa() !== null && $this->peutViser();
+    }
+
+    /** Vrai pour le collaborateur d'une des structures qui donnent leur visa : BC, BE ou MOE. */
+    public function estCollaborateurVisa(): bool
+    {
+        return $this->structureVisa() !== null && !$this->peutViser();
+    }
+
+    public function isMaitreOeuvre(): bool
+    {
+        return $this->structure?->type === 'maitre_oeuvre';
+    }
+
+    /** Les chefs de structure (et le chef de lot du Bureau de Contrôle) apposent leur cachet et leur signature ; pas les collaborateurs. */
+    public function peutViser(): bool
+    {
+        return $this->isResponsableOrganisme() || $this->isChefLot();
+    }
+
+    public function demandesInformationRecues(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DemandeInformation::class, 'destinataire_id');
     }
 
     // Vérifier si l'utilisateur est un responsable d'organisme
@@ -227,17 +312,27 @@ class User extends Authenticatable
         return $this->structure?->type === 'maitre_ouvrage';
     }
 
-    // Layout Blade de l'espace visuel de l'utilisateur (sidebar/couleur d'accent)
-    public function spaceLayout(): string
+    /**
+     * Espace de l'utilisateur : une seule source de vérité pour le menu, la couleur et les
+     * accès. Un chef n'est jamais envoyé dans l'espace d'un collaborateur, et inversement.
+     */
+    public function espace(): string
     {
         return match (true) {
-            $this->role === self::ROLE_ADMIN => 'layouts.admin',
-            $this->role === self::ROLE_CHEF_LOT => 'layouts.cheflot',
-            $this->role === self::ROLE_CONTROLEUR => 'layouts.controleur',
-            $this->isBureauControle() => 'layouts.controleur',
-            $this->isMaitreOuvrage() => 'layouts.maitre-ouvrage',
-            default => 'layouts.entreprise',
+            $this->isAdmin() => 'admin',
+            $this->isChefLot() => 'cheflot',
+            $this->isControleur() || $this->isBureauControle() => 'controleur',
+            $this->isBureauEtudes() => $this->peutViser() ? 'bureau_etudes_chef' : 'bureau_etudes_collab',
+            $this->isMaitreOeuvre() => $this->peutViser() ? 'maitre_oeuvre_chef' : 'maitre_oeuvre_collab',
+            $this->isMaitreOuvrage() => 'maitre-ouvrage',
+            default => 'entreprise',
         };
+    }
+
+    // Layout Blade de l'espace visuel de l'utilisateur (menu / couleur d'accent)
+    public function spaceLayout(): string
+    {
+        return 'layouts.' . $this->espace();
     }
 
     // Récupérer le dashboard route en fonction du rôle
@@ -255,6 +350,8 @@ class User extends Authenticatable
             self::ROLE_BUREAU_ETUDES_COLLABORATEUR => 'bureau_etudes.collaborateur.dashboard',
             self::ROLE_MAITRE_OUVRAGE_CHEF => 'maitre_ouvrage.chef.dashboard',
             self::ROLE_MAITRE_OUVRAGE_COLLABORATEUR => 'maitre_ouvrage.collaborateur.dashboard',
+            self::ROLE_MAITRE_OEUVRE_CHEF => 'maitre_oeuvre.chef.dashboard',
+            self::ROLE_MAITRE_OEUVRE_COLLABORATEUR => 'maitre_oeuvre.collaborateur.dashboard',
             default => 'dashboard',
         };
     }

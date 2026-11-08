@@ -21,92 +21,11 @@ class BureauControleController extends Controller
     }
 
     /**
-     * Dashboard pour le collaborateur (contrôleur)
-     * Passe toutes les variables nécessaires à la vue
+     * Dashboard pour le collaborateur (contrôleur) : même tableau de bord que l'espace contrôleur.
      */
     public function collaborateurDashboard()
     {
-        $user = Auth::user();
-
-        // Récupérer le lot de l'utilisateur
-        $lot = $user->lot;
-
-        // Statistiques - avec vérification si lot existe
-        $totalDemandes = $lot ? Demande::where('lot_id', $lot->id)->count() : 0;
-        $demandesEnAttente = $lot ? Demande::where('lot_id', $lot->id)->where('statut', 'EN ATTENTE')->count() : 0;
-        $demandesEnControle = $lot ? Demande::where('lot_id', $lot->id)->where('statut', 'EN CONTROLE')->count() : 0;
-        $demandesValidees = $lot ? Demande::where('lot_id', $lot->id)->where('statut', 'VALIDE')->count() : 0;
-        $demandesRejetees = $lot ? Demande::where('lot_id', $lot->id)->where('statut', 'REJETE')->count() : 0;
-        $demandesEnRetard = $lot ? Demande::where('lot_id', $lot->id)
-            ->where('statut', '!=', 'VALIDE')
-            ->where('created_at', '<', now()->subDays(7))
-            ->count() : 0;
-
-        // Demandes récentes
-        $demandesRecentes = $lot ? Demande::where('lot_id', $lot->id)
-            ->with('soumisPar')
-            ->orderBy('created_at', 'desc')
-            ->limit(5)
-            ->get() : collect();
-
-        // ✅ Données pour les graphiques (6 derniers mois)
-        $months = [];
-        $documentsData = [];
-        for ($i = 5; $i >= 0; $i--) {
-            $month = now()->subMonths($i);
-            $months[] = $month->format('M Y');
-            $documentsData[] = $lot ? Demande::where('lot_id', $lot->id)
-                ->whereYear('created_at', $month->year)
-                ->whereMonth('created_at', $month->month)
-                ->count() : 0;
-        }
-
-        // Données pour le graphique des priorités
-        $priorites = [
-            'Basse' => $lot ? Demande::where('lot_id', $lot->id)->where('priorite', 'Basse')->count() : 0,
-            'Moyenne' => $lot ? Demande::where('lot_id', $lot->id)->where('priorite', 'Moyenne')->count() : 0,
-            'Haute' => $lot ? Demande::where('lot_id', $lot->id)->where('priorite', 'Haute')->count() : 0,
-            'Urgente' => $lot ? Demande::where('lot_id', $lot->id)->where('priorite', 'Urgente')->count() : 0,
-        ];
-
-        // ✅ ALIAS : Renommer les variables pour correspondre à la vue
-        $totalDocuments = $totalDemandes;
-        $documentsEnAttente = $demandesEnAttente;
-        $documentsEnCours = $demandesEnControle;
-        $documentsValides = $demandesValidees;
-        $documentsACorriger = $demandesRejetees;
-        $documentsEnAnalyse = 0; // Pas de statut correspondant
-        $documentsRecents = $demandesRecentes;
-
-        // ✅ Statuts pour le graphique camembert
-        $statutLabels = ['En attente', 'En cours', 'Validés', 'À corriger'];
-        $statutData = [
-            $demandesEnAttente,
-            $demandesEnControle,
-            $demandesValidees,
-            $demandesRejetees,
-        ];
-
-        // ✅ Retourner la vue avec TOUTES les variables
-        return view('controleur.dashboard', compact(
-            'user',
-            'lot',
-            // Variables pour les cartes de stats
-            'totalDocuments',
-            'documentsEnAttente',
-            'documentsEnCours',
-            'documentsValides',
-            'documentsACorriger',
-            'documentsEnAnalyse',
-            // Variables pour le tableau
-            'documentsRecents',
-            // Variables pour les graphiques
-            'statutLabels',
-            'statutData',
-            'months',
-            'documentsData',  // ✅ AJOUTÉ
-            'priorites'
-        ));
+        return redirect()->route('controleur.dashboard');
     }
 
     /**

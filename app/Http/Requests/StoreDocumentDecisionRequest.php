@@ -13,11 +13,23 @@ class StoreDocumentDecisionRequest extends FormRequest
 
     public function rules(): array
     {
-        return [
+        $regles = [
             'decision' => 'required|in:valide,a_corriger',
             'observations_retenues' => 'nullable|array',
             'observations_retenues.*' => 'exists:document_observations,id',
             'commentaires' => 'required_if:decision,a_corriger|nullable|string',
         ];
+
+        // Valider = viser : cachet + signature du validateur obligatoires.
+        if ($this->input('decision') === 'valide') {
+            $regles += \App\Services\VisaService::regles($this->user());
+        }
+
+        return $regles;
+    }
+
+    public function messages(): array
+    {
+        return \App\Services\VisaService::messages();
     }
 }

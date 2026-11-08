@@ -49,7 +49,7 @@ class DocumentTransmittedMail extends Mailable
                 'dossier' => $this->dossier,
                 'emetteur' => $this->emetteur,
                 'mode' => $this->mode,
-                'url' => route('entreprise.dossiers.show', $this->dossier->id),
+                'url' => route('dossiers.show', $this->dossier->id),
             ]
         );
     }

@@ -1,219 +1,69 @@
-@extends('layouts.cheflot')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Analyse du document')
 
 @section('content')
 <style>
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 24px;
-        flex-wrap: wrap;
-        gap: 15px;
-    }
-    .btn-back {
-        background: #e5e7eb;
-        color: #333;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.3s ease;
-    }
-    .btn-back:hover { background: #d1d5db; }
-
-    .btn-primary {
-        background: #047857;
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 13px;
-        cursor: pointer;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        transition: all 0.3s ease;
-    }
-    .btn-primary:hover {
-        background: #065f46;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(4,120,87,0.3);
-    }
-
-    .card {
-        background: white;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.04);
-        margin-bottom: 20px;
-    }
-    .card h3 {
-        font-size: 15px;
-        font-weight: 700;
-        color: #1a1a1a;
-        margin-bottom: 14px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .card h3 i { color: #047857; }
-
-    .info-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 10px 0;
-        border-bottom: 1px solid #f0eeea;
-        font-size: 14px;
-    }
-    .info-row:last-child { border-bottom: none; }
-    .info-row .label { color: #888; }
-    .info-row .value { font-weight: 600; color: #1a1a1a; }
-
-    .version-table {
+.version-table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
+        font-size: var(--fs-m);
     }
-    .version-table th {
+.version-table th {
         text-align: left;
         padding: 10px 12px;
-        background: #f0fdf4;
-        color: #064e3b;
+        background: var(--accent-s);
+        color: var(--accent-d);
         font-weight: 600;
-        font-size: 11px;
+        font-size: var(--fs-s);
         text-transform: uppercase;
     }
-    .version-table td {
+.version-table td {
         padding: 10px 12px;
         border-bottom: 1px solid #f0eeea;
     }
-    .btn-download {
-        color: #047857;
+.btn-download {
+        color: var(--accent);
         text-decoration: none;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         display: inline-flex;
         align-items: center;
         gap: 4px;
         transition: all 0.3s ease;
     }
-    .btn-download:hover { color: #064e3b; gap: 8px; }
-    .btn-preview {
+.btn-download:hover { color: var(--accent-d); gap: 8px; }
+.btn-preview {
         color: #7c3aed;
         text-decoration: none;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         display: inline-flex;
         align-items: center;
         gap: 4px;
         transition: all 0.3s ease;
         margin-right: 12px;
     }
-    .btn-preview:hover { color: #5b21b6; gap: 8px; }
-
-    .decision-buttons {
+.btn-preview:hover { color: #5b21b6; gap: 8px; }
+.decision-buttons {
         display: flex;
         gap: 12px;
         margin-bottom: 16px;
     }
-    .decision-option {
-        flex: 1;
-        border: 2px solid #e0e8f0;
-        border-radius: 12px;
+.decision-label { font-size: var(--fs-m); font-weight: 600; color: #333; }
+.error-text { color: #dc2626; font-size: var(--fs-s); margin-top: 6px; }
+.badge-soumis { background: #dbeafe; color: #2563eb; }
+.badge-en_cours { background: #fef3c7; color: #d97706; }
+.badge-a_corriger { background: #fee2e2; color: #dc2626; }
+.already-decided {
         padding: 16px;
-        cursor: pointer;
-        text-align: center;
-        transition: all 0.2s ease;
-    }
-    .decision-option:hover { border-color: #047857; background: #f0fdf4; }
-    .decision-option input[type="radio"] { display: none; }
-    .decision-option i { font-size: 24px; display: block; margin-bottom: 8px; }
-    .decision-option.valide i { color: #059669; }
-    .decision-option.corriger i { color: #dc2626; }
-    .decision-option input[type="radio"]:checked + .decision-label {
-        font-weight: 700;
-    }
-    .decision-option:has(input[type="radio"]:checked) {
-        border-color: #047857;
-        background: #f0fdf4;
-        box-shadow: 0 0 0 3px rgba(4,120,87,0.1);
-    }
-    .decision-label { font-size: 14px; font-weight: 600; color: #333; }
-
-    .form-group { margin-bottom: 16px; }
-    .form-group label {
-        display: block;
-        font-weight: 600;
-        font-size: 13px;
-        color: #333;
-        margin-bottom: 6px;
-    }
-    .form-group textarea {
-        width: 100%;
-        padding: 10px 14px;
-        border: 1px solid #e0e8f0;
-        border-radius: 8px;
-        font-size: 14px;
-        font-family: inherit;
-        min-height: 100px;
-        resize: vertical;
-    }
-    .form-group textarea:focus {
-        outline: none;
-        border-color: #047857;
-        box-shadow: 0 0 0 3px rgba(4,120,87,0.1);
-    }
-    .error-text { color: #dc2626; font-size: 12px; margin-top: 6px; }
-
-    .btn-submit {
-        background: linear-gradient(135deg, #047857, #064e3b);
-        color: white;
-        border: none;
-        padding: 12px 28px;
-        border-radius: 10px;
-        font-weight: 600;
-        font-size: 14px;
-        cursor: pointer;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        transition: all 0.3s ease;
-    }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(4,120,87,0.3); }
-
-    .badge {
-        padding: 4px 12px;
-        border-radius: 20px;
-        font-size: 11px;
-        font-weight: 600;
-        text-transform: uppercase;
-    }
-    .badge-soumis { background: #dbeafe; color: #2563eb; }
-    .badge-en_cours { background: #fef3c7; color: #d97706; }
-    .badge-valide { background: #d1fae5; color: #059669; }
-    .badge-a_corriger { background: #fee2e2; color: #dc2626; }
-
-    .already-decided {
-        padding: 16px;
-        background: #f0fdf4;
+        background: var(--accent-s);
         border: 1px solid #bbf7d0;
         border-radius: 10px;
-        color: #064e3b;
-        font-size: 14px;
+        color: var(--accent-d);
+        font-size: var(--fs-m);
     }
-
-    /* Modal */
-    .modal-overlay {
+.modal-overlay {
         display: none;
         position: fixed;
         top: 0;
@@ -225,121 +75,46 @@
         justify-content: center;
         align-items: center;
     }
-    .modal-overlay.active { display: flex; }
-    .modal-content {
-        background: white;
-        border-radius: 16px;
-        padding: 28px;
-        max-width: 450px;
-        width: 90%;
-        animation: slideIn 0.3s ease;
-    }
-    @keyframes slideIn {
+.modal-overlay.active { display: flex; }
+@keyframes slideIn {
         from { transform: translateY(-30px); opacity: 0; }
         to { transform: translateY(0); opacity: 1; }
     }
-    .modal-content h3 {
-        font-size: 18px;
-        font-weight: 700;
-        margin-bottom: 16px;
-        color: #1a1a1a;
-    }
-    .modal-content h3 i { color: #047857; }
-    .modal-content .collaborateur-item {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border: 1px solid #e0e8f0;
-        border-radius: 8px;
-        margin-bottom: 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-    }
-    .modal-content .collaborateur-item:hover {
-        border-color: #047857;
-        background: #f0fdf4;
-    }
-    .modal-content .collaborateur-item input[type="radio"] {
-        width: 16px;
-        height: 16px;
-        accent-color: #047857;
-        flex-shrink: 0;
-    }
-    .modal-content .collaborateur-item .info strong {
-        display: block;
-        font-size: 13px;
-        color: #1a1a1a;
-    }
-    .modal-content .collaborateur-item .info span {
-        font-size: 12px;
-        color: #888;
-    }
-    .modal-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 10px;
-        margin-top: 16px;
-        padding-top: 16px;
-        border-top: 1px solid #f0eeea;
-    }
-    .modal-actions .btn-cancel {
-        background: #e5e7eb;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .modal-actions .btn-cancel:hover { background: #d1d5db; }
-    .modal-actions .btn-confirm {
-        background: linear-gradient(135deg, #047857, #064e3b);
-        color: white;
-        border: none;
-        padding: 10px 20px;
-        border-radius: 10px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: all 0.3s ease;
-    }
-    .modal-actions .btn-confirm:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(4,120,87,0.3);
-    }
-    .btn-delai-quick {
-        background: #f0fdf4;
-        color: #047857;
-        border: 1px solid #d1fae5;
+.btn-delai-quick {
+        background: var(--accent-s);
+        color: var(--accent);
+        border: 1px solid var(--accent-3);
         padding: 5px 12px;
         border-radius: 20px;
-        font-size: 11px;
+        font-size: var(--fs-s);
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s ease;
     }
-    .btn-delai-quick:hover { background: #047857; color: white; }
-
-    @media (max-width: 768px) {
-        .page-header {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        .decision-buttons {
+.btn-delai-quick:hover { background: var(--accent); color: white; }
+@media (max-width: 768px) {
+.decision-buttons {
             flex-direction: column;
         }
-    }
+}
 </style>
 
+@php
+    $moi = auth()->user();
+    $circuitService = app(\App\Services\CircuitVisaService::class);
+    $versionCourante = $dossier->versions->sortByDesc('numero_version')->first();
+    $peutDecider = $versionCourante && $circuitService->peutDeciderDirectement($moi, $versionCourante);
+    $maLigne = $versionCourante ? $circuitService->ligneDe($versionCourante, $moi) : null;
+@endphp
 <div class="page-header">
     <h2><i class="fas fa-search"></i> Analyse du document</h2>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
-        @if(!in_array($dossier->statut, ['valide']))
+        @if($peutDecider)
         <button class="btn-primary" onclick="openAssignModal()">
             <i class="fas fa-user-plus"></i> Assigner
         </button>
         @endif
-        <a href="{{ route('cheflot.documents.recus') }}" class="btn-back">
+        <a href="{{ sroute('cheflot.documents.recus') }}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Retour à la liste
         </a>
     </div>
@@ -366,7 +141,7 @@
     </div>
     <div class="info-row">
         <span class="label">Statut actuel</span>
-        <span class="value"><span class="badge badge-{{ $dossier->statut }}">{{ $dossier->statut }}</span></span>
+        <span class="value"><span class="badge badge-{{ $dossier->statut }}">{{ $dossier->statut_label }}</span></span>
     </div>
     @if($dossier->description)
     <div class="info-row">
@@ -376,10 +151,12 @@
     @endif
 </div>
 
+@include('partials.circuit-visas')
+
 <!-- Historique des versions -->
 <div class="card">
     <h3><i class="fas fa-history"></i> Versions du document</h3>
-    <table class="version-table">
+    <table class="version-table" data-no-filter>
         <thead>
             <tr>
                 <th>Version</th>
@@ -399,10 +176,10 @@
                 <td>{{ $version->created_at->format('d/m/Y H:i') }}</td>
                 <td>{{ $version->commentaire ?? '-' }}</td>
                 <td>
-                    <a href="{{ route('cheflot.documents.recus.apercu', ['dossier' => $dossier->id, 'version' => $version->id]) }}" target="_blank" class="btn-preview">
+                    <a href="{{ sroute('cheflot.documents.recus.apercu', ['dossier' => $dossier->id, 'version' => $version->id]) }}" target="_blank" class="btn-preview">
                         <i class="fas fa-eye"></i> Aperçu
                     </a>
-                    <a href="{{ route('cheflot.documents.recus.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn-download">
+                    <a href="{{ sroute('cheflot.documents.recus.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn-download">
                         <i class="fas fa-download"></i> Télécharger
                     </a>
                 </td>
@@ -424,6 +201,7 @@
     // celles qui ont déjà des observations ou qui sont terminées.
     $toutesAffectations = $dossier->versions
         ->flatMap(fn($v) => $v->affectations)
+        ->filter(fn($a) => $a->controleur?->structureVisa() === $moi->structureVisa()) // analyses de sa propre structure
         ->sortByDesc('created_at');
 
     $affectationsParCollaborateur = $toutesAffectations
@@ -470,9 +248,9 @@
         $statutLabel = $affectation->statut === 'termine'
             ? 'Terminé'
             : ($affectation->statut === 'en_cours' ? 'En cours' : 'En attente');
-        $statutBg = $affectation->statut === 'termine' ? '#d1fae5' : '#fef3c7';
-        $statutColor = $affectation->statut === 'termine' ? '#059669' : '#d97706';
-        $borderColor = $affectation->statut === 'termine' ? '#047857' : '#f59e0b';
+        $statutBg = $affectation->statut === 'termine' ? 'var(--accent-3)' : '#fef3c7';
+        $statutColor = $affectation->statut === 'termine' ? 'var(--accent-d)' : '#d97706';
+        $borderColor = $affectation->statut === 'termine' ? 'var(--accent)' : '#f59e0b';
     @endphp
 
     <div style="background:#f9fafb; border-radius:12px; padding:16px 20px; margin-bottom:14px; border-left:4px solid {{ $borderColor }};">
@@ -480,11 +258,11 @@
         {{-- En-tête affectation --}}
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
             <div>
-                <strong style="color:#1a1a1a; font-size:14px;">
+                <strong style="color:#1a1a1a; font-size: var(--fs-m);">
                     {{ $affectation->controleur->full_name ?? 'Collaborateur inconnu' }}
                 </strong>
                 @if($affectation->specialite)
-                    <span style="color:#888; font-size:12px;"> — {{ $affectation->specialite }}</span>
+                    <span style="color:#888; font-size: var(--fs-s);"> — {{ $affectation->specialite }}</span>
                 @endif
             </div>
             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
@@ -492,7 +270,7 @@
                     {{ $statutLabel }}
                 </span>
                 @if($affectation->date_limite)
-                    <span style="font-size:11px; color:#888;">
+                    <span style="font-size: var(--fs-s); color:#888;">
                         Échéance : {{ $affectation->date_limite->format('d/m/Y H:i') }}
                     </span>
                 @endif
@@ -502,27 +280,27 @@
         {{-- Observations du collaborateur (toutes versions confondues) --}}
         @if($obsDuCollaborateur->count() > 0)
             <div style="margin-top:12px;">
-                <p style="font-size:12px; font-weight:600; color:#064e3b; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px;">
+                <p style="font-size: var(--fs-s); font-weight:600; color:var(--accent-d); margin-bottom:8px; text-transform:uppercase; letter-spacing:0.3px;">
                     Observations ({{ $obsDuCollaborateur->count() }})
                 </p>
                 @foreach($obsDuCollaborateur as $obs)
-                <div style="background:white; border-radius:8px; padding:10px 14px; margin-bottom:8px; border-left:3px solid {{ $obs->type === 'non_conformite' ? '#dc2626' : '#047857' }};">
-                    <div style="display:flex; justify-content:space-between; font-size:11px; color:#888; margin-bottom:4px;">
+                <div style="background:white; border-radius:8px; padding:10px 14px; margin-bottom:8px; border-left:3px solid {{ $obs->type === 'non_conformite' ? '#dc2626' : 'var(--accent)' }};">
+                    <div style="display:flex; justify-content:space-between; font-size: var(--fs-s); color:#888; margin-bottom:4px;">
                         <span>
-                            <strong style="color:{{ $obs->type === 'non_conformite' ? '#dc2626' : '#047857' }};">
+                            <strong style="color:{{ $obs->type === 'non_conformite' ? '#dc2626' : 'var(--accent)' }};">
                                 {{ $obs->type === 'non_conformite' ? 'Non-conformité' : 'Observation' }}
                             </strong>
                         </span>
                         <span>{{ $obs->created_at->format('d/m/Y H:i') }}</span>
                     </div>
-                    <p style="font-size:13px; color:#333; margin:0; line-height:1.5;">
+                    <p style="font-size: var(--fs-m); color:#333; margin:0; line-height:1.5;">
                         {!! nl2br(e($obs->contenu)) !!}
                     </p>
                 </div>
                 @endforeach
             </div>
         @else
-            <p style="font-size:12px; color:#888; margin-top:8px; font-style:italic;">
+            <p style="font-size: var(--fs-s); color:#888; margin-top:8px; font-style:italic;">
                 Aucune observation rédigée pour le moment.
             </p>
         @endif
@@ -530,12 +308,12 @@
         {{-- Vérifications checklist --}}
         @if($checklist->count() > 0)
             <div style="margin-top:12px;">
-                <p style="font-size:12px; font-weight:600; color:#064e3b; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px;">
+                <p style="font-size: var(--fs-s); font-weight:600; color:var(--accent-d); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.3px;">
                     Vérifications
                 </p>
                 <div style="display:flex; flex-wrap:wrap; gap:6px;">
                     @foreach($checklist as $rep)
-                        <span style="font-size:11px; padding:3px 10px; border-radius:12px; background:{{ $rep->valeur ? '#d1fae5' : '#f3f4f6' }}; color:{{ $rep->valeur ? '#059669' : '#6b7280' }};">
+                        <span style="font-size: var(--fs-s); padding:3px 10px; border-radius:12px; background:{{ $rep->valeur ? 'var(--accent-3)' : '#f3f4f6' }}; color:{{ $rep->valeur ? 'var(--accent-d)' : '#6b7280' }};">
                             {{ $rep->valeur ? '✓' : '✗' }} {{ $rep->checklistItem->libelle ?? '' }}
                         </span>
                     @endforeach
@@ -549,16 +327,24 @@
 
 <!-- Décision -->
 <div class="card">
-    <h3><i class="fas fa-gavel"></i> Décision</h3>
+    <h3><i class="fas fa-gavel"></i> Décision de {{ \App\Support\Espaces::nom($moi->structureVisa() ?? 'bureau_controle') }}</h3>
 
-    @if(in_array($dossier->statut, ['valide', 'a_corriger']))
+    @if(!$peutDecider)
         <div class="already-decided">
             <i class="fas fa-check-circle"></i>
-            Une décision a déjà été rendue pour ce dossier :
-            <strong>{{ $dossier->statut === 'valide' ? 'Validé' : 'À corriger' }}</strong>.
+            @if($maLigne && $maLigne->statut === 'valide')
+                Votre structure a déjà visé ce document. Il sera validé lorsque toutes les structures sollicitées auront visé.
+            @elseif($maLigne && $maLigne->statut === 'a_corriger')
+                Votre structure a demandé une correction de ce document.
+            @elseif(!$maLigne && $circuitService->aCircuit($versionCourante))
+                Le visa de votre structure n'est pas demandé sur ce document.
+            @else
+                Une décision a déjà été rendue pour ce dossier :
+                <strong>{{ $dossier->statut === 'valide' ? 'Validé' : ($dossier->statut === 'a_corriger' ? 'À corriger' : $dossier->statut_label) }}</strong>.
+            @endif
         </div>
     @else
-        <form action="{{ route('cheflot.documents.recus.decision', $dossier->id) }}" method="POST">
+        <form action="{{ sroute('cheflot.documents.recus.decision', $dossier->id) }}" method="POST" enctype="multipart/form-data">
             @csrf
 
             <div class="decision-buttons">
@@ -585,6 +371,8 @@
                 @enderror
             </div>
 
+            @include('partials.visa-validation')
+
             <button type="submit" class="btn-submit">
                 <i class="fas fa-paper-plane"></i> Envoyer la décision
             </button>
@@ -593,40 +381,37 @@
 </div>
 
 <!-- Modal d'assignation -->
-<div id="assignModal" class="modal-overlay">
+<div id="assignModal" class="modal-overlay asg">
     <div class="modal-content">
-        <h3><i class="fas fa-user-plus"></i> Assigner à un collaborateur</h3>
+        <div class="asg-head">
+            <h3>Assigner à un collaborateur</h3>
+            <p>{{ $dossier->identifiant_affiche }} · {{ Str::limit($dossier->titre, 60) }}</p>
+        </div>
 
-        <form action="{{ route('cheflot.documents.recus.assigner', $dossier->id) }}" method="POST">
+        <form action="{{ sroute('cheflot.documents.recus.assigner', $dossier->id) }}" method="POST">
             @csrf
-            <div id="collaborateursList" style="max-height:250px; overflow-y:auto; margin-bottom:16px;">
-                <p style="color:#888; font-size:13px; text-align:center; padding:20px 0;">
-                    <i class="fas fa-spinner fa-spin"></i> Chargement des collaborateurs...
-                </p>
+
+            <div class="asg-step"><b>1</b> Choisir le collaborateur</div>
+            <div id="collaborateursList" class="asg-grid">
+                <p class="asg-empty">Chargement des collaborateurs…</p>
             </div>
 
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-weight:600; font-size:13px; margin-bottom:6px;">Spécialité / note (optionnel)</label>
-                <input type="text" name="specialite" placeholder="Ex: Structure, Électricité..." style="width:100%; padding:10px 14px; border:1px solid #e0e8f0; border-radius:8px;">
-            </div>
+            <div class="asg-step"><b>2</b> Spécialité demandée <small>facultatif</small></div>
+            <input type="text" name="specialite" class="asg-input" placeholder="Ex : Structure, Électricité…">
 
-            <div style="margin-bottom:16px;">
-                <label style="display:block; font-weight:600; font-size:13px; margin-bottom:6px;">Délai de traitement (optionnel)</label>
-                <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">
-                    <button type="button" class="btn-delai-quick" data-heures="24">+24h</button>
-                    <button type="button" class="btn-delai-quick" data-heures="48">+48h</button>
-                    <button type="button" class="btn-delai-quick" data-heures="72">+3j</button>
-                    <button type="button" class="btn-delai-quick" data-heures="168">+7j</button>
-                </div>
-                <input type="datetime-local" name="date_limite" id="assignDateLimite" style="width:100%; padding:10px 14px; border:1px solid #e0e8f0; border-radius:8px; font-family:inherit;">
-                <p style="font-size:11px; color:#888; margin-top:6px;">Date et heure limite pour rendre l'analyse.</p>
+            <div class="asg-step"><b>3</b> Délai de traitement <small>facultatif</small></div>
+            <div class="asg-chips">
+                <button type="button" class="btn-delai-quick" data-heures="24">24 heures</button>
+                <button type="button" class="btn-delai-quick" data-heures="48">48 heures</button>
+                <button type="button" class="btn-delai-quick" data-heures="72">3 jours</button>
+                <button type="button" class="btn-delai-quick" data-heures="168">7 jours</button>
             </div>
+            <input type="datetime-local" name="date_limite" id="assignDateLimite" class="asg-input">
+            <p class="asg-help">Date et heure limite pour rendre l'analyse.</p>
 
-            <div class="modal-actions">
-                <button type="button" class="btn-cancel" onclick="closeAssignModal()">Annuler</button>
-                <button type="submit" class="btn-confirm">
-                    <i class="fas fa-check"></i> Confirmer
-                </button>
+            <div class="asg-actions">
+                <button type="button" class="asg-cancel" onclick="closeAssignModal()">Annuler</button>
+                <button type="submit" class="asg-ok">Confirmer l'assignation</button>
             </div>
         </form>
     </div>
@@ -638,29 +423,28 @@
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
 
-        fetch(`/cheflot/documents-recus/{{ $dossier->id }}/collaborateurs`)
+        fetch(`{{ sroute('cheflot.documents.recus.collaborateurs', $dossier->id) }}`)
             .then(r => r.json())
             .then(data => {
                 const container = document.getElementById('collaborateursList');
                 if (data.collaborateurs.length === 0) {
-                    container.innerHTML = `<p style="color:#888; font-size:13px; text-align:center; padding:20px 0;">Aucun collaborateur disponible.</p>`;
+                    container.innerHTML = `<p class="asg-empty">Aucun collaborateur disponible.</p>`;
                     return;
                 }
-                container.innerHTML = data.collaborateurs.map(c => `
-                    <label class="collaborateur-item">
+                const echapper = t => String(t ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+                container.innerHTML = data.collaborateurs.map(c => {
+                    const initiales = echapper(c.full_name.split(' ').map(m => m[0]).slice(0, 2).join('').toUpperCase());
+                    return `
+                    <label class="asg-card">
                         <input type="radio" name="controleur_id" value="${c.id}" required>
-                        <div class="info">
-                            <strong>${c.full_name}</strong>
-                            <span>${c.fonction || 'Aucune fonction renseignée'}</span>
-                        </div>
-                    </label>
-                `).join('');
+                        <span class="asg-av">${initiales}</span>
+                        <span class="asg-who"><strong>${echapper(c.full_name)}</strong><small>${echapper(c.fonction || 'Aucune fonction renseignée')}</small></span>
+                    </label>`;
+                }).join('');
             })
             .catch(() => {
                 document.getElementById('collaborateursList').innerHTML = `
-                    <p style="color:#dc2626; font-size:13px; text-align:center; padding:20px 0;">
-                        <i class="fas fa-exclamation-circle"></i> Erreur lors du chargement.
-                    </p>
+                    <p class="asg-empty">Erreur lors du chargement.</p>
                 `;
             });
     }
@@ -672,6 +456,7 @@
 
     document.querySelectorAll('.btn-delai-quick').forEach(function (btn) {
         btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-delai-quick').forEach(function (b) { b.classList.toggle('on', b === btn); });
             const heures = parseInt(btn.dataset.heures, 10);
             const date = new Date(Date.now() + heures * 3600 * 1000);
             date.setSeconds(0, 0);

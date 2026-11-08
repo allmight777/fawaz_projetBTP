@@ -4,33 +4,33 @@
 
 @section('content')
 <style>
-    .historique-container {
+.historique-container {
         max-width: 1000px;
         margin: 0 auto;
     }
-    .historique-card {
+.historique-card {
         background: white;
         border-radius: 20px;
         padding: 30px;
         box-shadow: 0 2px 10px rgba(0,0,0,0.05);
         margin-bottom: 25px;
     }
-    .historique-header {
+.historique-header {
         margin-bottom: 25px;
         padding-bottom: 15px;
         border-bottom: 2px solid #e5e7eb;
     }
-    .historique-header h3 {
+.historique-header h3 {
         font-size: 20px;
         font-weight: 700;
         color: #064e3b;
         margin: 0;
     }
-    .timeline {
+.timeline {
         position: relative;
         padding-left: 30px;
     }
-    .timeline::before {
+.timeline::before {
         content: '';
         position: absolute;
         left: 10px;
@@ -39,13 +39,13 @@
         width: 2px;
         background: #e5e7eb;
     }
-    .timeline-item {
+.timeline-item {
         position: relative;
         margin-bottom: 25px;
         padding-bottom: 20px;
         border-bottom: 1px solid #f3f4f6;
     }
-    .timeline-icon {
+.timeline-icon {
         position: absolute;
         left: -22px;
         top: 0;
@@ -57,51 +57,41 @@
         align-items: center;
         justify-content: center;
         color: white;
-        font-size: 12px;
+        font-size: var(--fs-s);
     }
-    .timeline-content {
+.timeline-content {
         padding-left: 20px;
     }
-    .timeline-title {
+.timeline-title {
         font-weight: 700;
         color: #1f2937;
         margin-bottom: 5px;
     }
-    .timeline-date {
-        font-size: 12px;
+.timeline-date {
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-bottom: 8px;
     }
-    .timeline-details {
+.timeline-details {
         background: #f9fafb;
         padding: 10px 15px;
         border-radius: 8px;
-        font-size: 14px;
+        font-size: var(--fs-m);
         margin-top: 8px;
     }
-    .badge-change {
+.badge-change {
         background: #e5e7eb;
         padding: 2px 8px;
         border-radius: 12px;
-        font-size: 11px;
+        font-size: var(--fs-s);
         display: inline-block;
         margin: 2px;
     }
-    .btn-back {
-        background: #6b7280;
-        color: white;
-        padding: 8px 16px;
-        border-radius: 8px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-    }
-    @media (max-width: 768px) {
-        .historique-card { padding: 20px; }
-        .timeline { padding-left: 20px; }
-        .timeline-icon { left: -17px; width: 20px; height: 20px; font-size: 10px; }
-    }
+@media (max-width: 768px) {
+.historique-card { padding: 20px; }
+.timeline { padding-left: 20px; }
+.timeline-icon { left: -17px; width: 20px; height: 20px; font-size: var(--fs-s); }
+}
 </style>
 
 <div class="historique-container">

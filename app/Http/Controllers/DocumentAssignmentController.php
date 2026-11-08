@@ -11,28 +11,34 @@ use Illuminate\Support\Facades\Mail;
 use App\Models\Dossier;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Services\CircuitVisaService;
 use App\Notifications\ControleurAffecte;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class DocumentAssignmentController extends Controller
 {
-    // Formulaire d'affectation d'un ou plusieurs contrôleurs (responsable du Bureau de Contrôle)
+    /** Collaborateurs actifs de la structure du responsable connecté (BC, BE ou MOE). */
+    private function collaborateursDe(User $chef)
+    {
+        return User::collaborateursVisa($chef->structureVisa() ?? 'bureau_controle')
+            ->where('actif', true)
+            ->when($chef->structure_id, fn ($q) => $q->where('structure_id', $chef->structure_id))
+            ->get();
+    }
+
+    // Formulaire d'affectation d'un ou plusieurs collaborateurs (responsable de la structure)
     public function create(DocumentVersion $documentVersion)
     {
         abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
-        abort_unless($documentVersion->statut === 'soumis', 403, 'Cette version ne peut plus être affectée (déjà en analyse, validée ou à corriger).');
+        abort_unless(
+            app(CircuitVisaService::class)->peutAffecter(Auth::user(), $documentVersion),
+            403,
+            'Cette version ne peut plus être affectée par votre structure (déjà en analyse, visée ou à corriger).'
+        );
 
         $documentVersion->load('dossier.documentType');
-        // Exclut les comptes "CONTROLEUR" qui appartiennent en réalité à une autre structure
-        // (ex. comptes de test Entreprise/MO) — seuls les vrais contrôleurs du Bureau de
-        // Contrôle, ou les contrôleurs historiques sans structure renseignée, sont proposés.
-        $controleurs = User::where('role', 'CONTROLEUR')
-            ->where('actif', true)
-            ->where(function ($query) {
-                $query->whereNull('structure_id')
-                    ->orWhereHas('structure', fn ($q) => $q->where('type', 'bureau_controle'));
-            })
-            ->get();
+        $controleurs = $this->collaborateursDe(Auth::user());
 
         return view('dossiers.affecter', compact('documentVersion', 'controleurs'));
     }
@@ -40,7 +46,16 @@ class DocumentAssignmentController extends Controller
     public function store(StoreDocumentAssignmentRequest $request, DocumentVersion $documentVersion)
     {
         abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
-        abort_unless($documentVersion->statut === 'soumis', 403, 'Cette version ne peut plus être affectée (déjà en analyse, validée ou à corriger).');
+        $circuit = app(CircuitVisaService::class);
+        abort_unless(
+            $circuit->peutAffecter(Auth::user(), $documentVersion),
+            403,
+            'Cette version ne peut plus être affectée par votre structure (déjà en analyse, visée ou à corriger).'
+        );
+
+        // On n'affecte qu'aux collaborateurs de sa propre structure.
+        $autorises = $this->collaborateursDe(Auth::user())->pluck('id')->all();
+        abort_if(array_diff($request->controleurs, $autorises), 403, 'Vous ne pouvez affecter que des collaborateurs de votre structure.');
 
         foreach ($request->controleurs as $controleurId) {
             $affectation = DocumentAssignment::create([
@@ -56,8 +71,7 @@ class DocumentAssignmentController extends Controller
             $affectation->controleur->notify(new ControleurAffecte($affectation));
         }
 
-        $documentVersion->update(['statut' => 'en_analyse']);
-        $documentVersion->dossier->update(['statut' => 'en_analyse']);
+        $circuit->demarrerAnalyse($documentVersion, Auth::user());
 
         AuditLog::enregistrer('AFFECTATION', $documentVersion->dossier_id, [
             'document_version_id' => $documentVersion->id,
@@ -65,7 +79,7 @@ class DocumentAssignmentController extends Controller
         ]);
 
         return redirect()->route('dossiers.show', $documentVersion->dossier_id)
-            ->with('success', 'Contrôleur(s) affecté(s) avec succès.');
+            ->with('success', 'Collaborateur(s) affecté(s) avec succès.');
     }
 
     // Liste des affectations du contrôleur connecté
@@ -74,7 +88,7 @@ class DocumentAssignmentController extends Controller
         $affectations = DocumentAssignment::with('documentVersion.dossier.documentType')
             ->where('controleur_id', Auth::id())
             ->latest()
-            ->paginate(15);
+            ->paginate(200);
 
         return view('dossiers.mes-affectations', compact('affectations'));
     }
@@ -125,20 +139,55 @@ class DocumentAssignmentController extends Controller
  * DocumentDecisionController), il indique seulement que ses observations
  * sont prêtes pour la consolidation du chef.
  */
-public function marquerTermine(DocumentAssignment $documentAssignment)
+public function marquerTermine(Request $request, DocumentAssignment $documentAssignment)
 {
     if ($documentAssignment->controleur_id !== Auth::id()) {
         abort(403);
     }
     abort_if($documentAssignment->documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
+    abort_if($documentAssignment->statut === 'termine', 403, 'Votre analyse est déjà terminée.');
 
-    $documentAssignment->update(['statut' => 'termine']);
-
-    AuditLog::enregistrer('ANALYSE_TERMINEE', $documentAssignment->documentVersion->dossier_id, [
-        'document_assignment_id' => $documentAssignment->id,
+    // Une seule action : vérifications + observation (facultative) + fin d'analyse.
+    $request->validate([
+        'reponses' => 'nullable|array',
+        'reponses.*' => 'boolean',
+        'type' => 'nullable|in:observation,non_conformite',
+        'contenu' => 'nullable|string|max:5000',
+    ], [
+        'contenu.max' => 'L\'observation est trop longue (5000 caractères maximum).',
     ]);
 
-    return redirect()->route('controleur.affectations.index')->with('success', 'Analyse marquée comme terminée. Le responsable peut maintenant consolider et décider.');
+    $version = $documentAssignment->documentVersion;
+    $contenu = trim((string) $request->input('contenu'));
+
+    DB::transaction(function () use ($request, $documentAssignment, $version, $contenu) {
+        // Toutes les vérifications de la checklist : cochées = oui, non cochées = non
+        // (une case décochée remplace bien une réponse précédente).
+        foreach ($version->dossier->documentType->checklistItems ?? [] as $item) {
+            \App\Models\ChecklistReponse::updateOrCreate(
+                ['document_version_id' => $version->id, 'checklist_item_id' => $item->id],
+                ['valeur' => (bool) $request->input('reponses.' . $item->id, false), 'repondu_par' => Auth::id()]
+            );
+        }
+
+        if ($contenu !== '') {
+            \App\Models\DocumentObservation::create([
+                'document_assignment_id' => $documentAssignment->id,
+                'auteur_id' => Auth::id(),
+                'type' => $request->input('type', 'observation'),
+                'contenu' => $contenu,
+            ]);
+            AuditLog::enregistrer('OBSERVATION', $version->dossier_id, ['document_assignment_id' => $documentAssignment->id]);
+        }
+
+        $documentAssignment->update(['statut' => 'termine']);
+
+        AuditLog::enregistrer('ANALYSE_TERMINEE', $version->dossier_id, [
+            'document_assignment_id' => $documentAssignment->id,
+        ]);
+    });
+
+    return redirect()->route(\App\Support\Espaces::nomRoute('controleur.affectations.index'))->with('success', 'Analyse terminée : vérifications et observation enregistrées. Le responsable peut maintenant consolider et décider.');
 }
 
 /**

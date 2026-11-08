@@ -12,15 +12,53 @@ class DocumentStampingService
     private const EXTENSIONS_IMAGE = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'];
 
     /**
-     * Incruste le tampon "Validé" (public/images/validate.jpg) sur le document et
-     * enregistre le résultat dans fichier_valide_chemin, sans jamais toucher au
-     * fichier original. Ne fait rien (silencieusement) pour les formats qui ne
-     * peuvent pas être tamponnés visuellement (Word, Excel, zip...).
+     * Validation finale : tampon « Validé » sur chaque page + cachets et signatures posés sur les pages (début, 1/4, milieu, 3/4, fin ; cachets et
+     * signatures de tous les chefs ayant visé, dont celui du Bureau de Contrôle).
+     * Écrit dans fichier_valide_chemin et scelle (SHA-256) ; ne touche jamais à l'original.
+     * Ne fait rien pour les formats non tamponnables (Word, Excel, zip...).
      */
     public function tamponner(DocumentVersion $version): bool
     {
-        if (!$version->fichier_chemin || !Storage::disk('public')->exists($version->fichier_chemin)) {
+        $chemin = $this->produire($version, true);
+        if (!$chemin) {
             return false;
+        }
+
+        $version->update([
+            'fichier_valide_chemin' => $chemin,
+            // Scellement : empreinte du fichier final, invalidée par toute modification a posteriori.
+            'fichier_valide_hash' => hash_file('sha256', Storage::disk('public')->path($chemin)),
+            'fichier_valide_scelle_le' => now(),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * Avant l'envoi à une autre structure : copie du document avec les cachets et signatures sur les pages
+     * (sans tampon « Validé »). Régénérée à chaque nouveau visa depuis l'original.
+     */
+    public function viser(DocumentVersion $version): bool
+    {
+        $chemin = $this->produire($version, false);
+        if (!$chemin) {
+            return false;
+        }
+
+        $version->update(['fichier_vise_chemin' => $chemin]);
+
+        return true;
+    }
+
+    private function produire(DocumentVersion $version, bool $avecTampon): ?string
+    {
+        if (!$version->fichier_chemin || !Storage::disk('public')->exists($version->fichier_chemin)) {
+            return null;
+        }
+
+        $visas = $version->visas()->with(['user', 'structure'])->get();
+        if (!$avecTampon && $visas->isEmpty()) {
+            return null;
         }
 
         $extension = strtolower(pathinfo($version->fichier_chemin, PATHINFO_EXTENSION));
@@ -28,45 +66,47 @@ class DocumentStampingService
 
         try {
             if ($extension === 'pdf') {
-                $cheminRelatif = $this->tamponnerPdf($version, $sourcePath);
-            } elseif (in_array($extension, self::EXTENSIONS_IMAGE, true)) {
-                $cheminRelatif = $this->tamponnerImage($version, $sourcePath, $extension);
-            } else {
-                return false;
+                return $this->tamponnerPdf($version, $sourcePath, $avecTampon, $visas);
+            }
+            if (in_array($extension, self::EXTENSIONS_IMAGE, true)) {
+                return $this->tamponnerImage($version, $sourcePath, $extension, $avecTampon, $visas);
             }
         } catch (\Throwable $e) {
-            Log::error('Échec du tamponnage du document validé : ' . $e->getMessage(), [
+            Log::error('Échec de la production du document visé/validé : ' . $e->getMessage(), [
                 'document_version_id' => $version->id,
             ]);
-
-            return false;
         }
 
-        if (!$cheminRelatif) {
-            return false;
-        }
-
-        // Scellement : empreinte SHA-256 du fichier tamponné, calculée sur le
-        // résultat final (donc invalidée par la moindre modification a posteriori).
-        $hash = hash_file('sha256', Storage::disk('public')->path($cheminRelatif));
-
-        $version->update([
-            'fichier_valide_chemin' => $cheminRelatif,
-            'fichier_valide_hash' => $hash,
-            'fichier_valide_scelle_le' => now(),
-        ]);
-
-        return true;
+        return null;
     }
 
-    private function tamponnerPdf(DocumentVersion $version, string $sourcePath): ?string
+    private function tamponnerPdf(DocumentVersion $version, string $sourcePath, bool $avecTampon, $visas): ?string
     {
-        $tamponPng = $this->genererTamponTransparent();
+        $tamponPng = $avecTampon ? $this->genererTamponTransparent() : null;
 
         try {
-            $pdf = new Fpdi();
-            $pageCount = $pdf->setSourceFile($sourcePath);
-            [$imgW, $imgH] = getimagesize($tamponPng);
+            // Le lecteur PDF gratuit de FPDI refuse les PDF récents (flux de références compressés) :
+            // dans ce cas on les ré-écrit au format PDF 1.4 avec Ghostscript, puis on réessaie.
+            $converti = null;
+            try {
+                $pdf = new Fpdi();
+                $pageCount = $pdf->setSourceFile($sourcePath);
+            } catch (\Throwable $e) {
+                $converti = $this->convertirPdfCompatible($sourcePath);
+                if (!$converti) {
+                    throw $e;
+                }
+                $pdf = new Fpdi();
+                $pageCount = $pdf->setSourceFile($converti);
+            }
+            // Pas de saut de page automatique : on écrit des légendes dans la marge basse.
+            $pdf->SetAutoPageBreak(false);
+            [$imgW, $imgH] = $tamponPng ? getimagesize($tamponPng) : [1, 1];
+
+            // Cachets + signatures posés sur les pages : début, 1/4, milieu, 3/4 et fin
+            // (toutes les pages si le document en compte moins de 5).
+            $cartes = $this->preparerCartesVisas($visas);
+            $pagesVisa = $this->pagesVisa($pageCount);
 
             for ($page = 1; $page <= $pageCount; $page++) {
                 $templateId = $pdf->importPage($page);
@@ -76,24 +116,214 @@ class DocumentStampingService
                 $pdf->useTemplate($templateId);
 
                 // Tampon posé sur chaque page (plus seulement la première)
-                $largeur = min(60, $taille['width'] * 0.4);
-                $hauteur = $largeur * $imgH / $imgW;
-                $x = $taille['width'] - $largeur - 15;
-                $y = $taille['height'] - $hauteur - 15;
-                $pdf->Image($tamponPng, max(5, $x), max(5, $y), $largeur, $hauteur, 'PNG');
+                if ($tamponPng) {
+                    $largeur = min(60, $taille['width'] * 0.4);
+                    $hauteur = $largeur * $imgH / $imgW;
+                    $x = $taille['width'] - $largeur - 15;
+                    $y = $taille['height'] - $hauteur - 15;
+                    $pdf->Image($tamponPng, max(5, $x), max(5, $y), $largeur, $hauteur, 'PNG');
+                }
+
+                if ($cartes && in_array($page, $pagesVisa, true)) {
+                    $this->poserVisasPdf($pdf, $cartes, $taille['width'], $taille['height'], $avecTampon);
+                }
             }
 
-            $relatif = 'dossiers/valides/' . date('Y/m') . '/' . pathinfo($version->fichier_chemin, PATHINFO_FILENAME) . '-valide.pdf';
+            $relatif = ($avecTampon ? 'dossiers/valides/' : 'dossiers/vises/') . date('Y/m') . '/' . pathinfo($version->fichier_chemin, PATHINFO_FILENAME) . ($avecTampon ? '-valide' : '-vise') . '.pdf';
             Storage::disk('public')->makeDirectory(dirname($relatif));
             $pdf->Output(Storage::disk('public')->path($relatif), 'F');
 
             return $relatif;
         } finally {
-            @unlink($tamponPng);
+            if ($tamponPng) {
+                @unlink($tamponPng);
+            }
+            if (!empty($converti)) {
+                @unlink($converti);
+            }
+            foreach ($cartes ?? [] as $carte) {
+                @unlink($carte['cachet']);
+            }
         }
     }
 
-    private function tamponnerImage(DocumentVersion $version, string $sourcePath, string $extension): ?string
+    /** Ré-écrit un PDF en version 1.4 (lisible par FPDI) via Ghostscript ; null si indisponible ou en échec. */
+    private function convertirPdfCompatible(string $source): ?string
+    {
+        $gs = null;
+        foreach (['/usr/bin/gs', '/usr/local/bin/gs', '/opt/homebrew/bin/gs'] as $candidat) {
+            if (is_executable($candidat)) {
+                $gs = $candidat;
+                break;
+            }
+        }
+        if (!$gs || !function_exists('proc_open')) {
+            Log::warning('Ghostscript introuvable : impossible d\'inscrire les visas sur ce PDF.');
+
+            return null;
+        }
+
+        $sortie = tempnam(sys_get_temp_dir(), 'pdf14_') . '.pdf';
+        $commande = [$gs, '-q', '-dNOPAUSE', '-dBATCH', '-dSAFER', '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.4', '-sOutputFile=' . $sortie, $source];
+        $process = @proc_open($commande, [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        if (!is_resource($process)) {
+            return null;
+        }
+        stream_get_contents($pipes[1]);
+        $erreur = stream_get_contents($pipes[2]);
+        $code = proc_close($process);
+
+        if ($code !== 0 || !is_file($sortie) || filesize($sortie) === 0) {
+            Log::warning('Conversion Ghostscript du PDF en échec : ' . trim((string) $erreur));
+            @unlink($sortie);
+
+            return null;
+        }
+
+        return $sortie;
+    }
+
+    /** Texte compatible polices FPDF (Windows-1252). */
+    private function t(?string $texte): string
+    {
+        return (string) iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', (string) $texte);
+    }
+
+    /** Pages portant les visas : début, 25 %, milieu, 75 % et fin ; toutes si moins de 5 pages. */
+    private function pagesVisa(int $nombre): array
+    {
+        if ($nombre <= 5) {
+            return range(1, max(1, $nombre));
+        }
+
+        return array_values(array_unique([1, (int) ceil($nombre * 0.25), (int) ceil($nombre * 0.5), (int) ceil($nombre * 0.75), $nombre]));
+    }
+
+    /**
+     * Prépare chaque visa : cachet en PNG au fond transparent (le blanc du JPG ne masque plus le texte
+     * du document), chemin absolu de la signature, et deux lignes de légende.
+     *
+     * @return array<int, array{cachet: string, signature: ?string, l1: string, l2: string}>
+     */
+    private function preparerCartesVisas($visas): array
+    {
+        $cartes = [];
+        foreach ($visas as $visa) {
+            $cachet = $this->cachetTransparent(Storage::disk('public')->path($visa->cachet_chemin));
+            if (!$cachet) {
+                continue;
+            }
+            $signature = Storage::disk('public')->path($visa->signature_chemin);
+            $cartes[] = [
+                'cachet' => $cachet,
+                'signature' => is_file($signature) ? $signature : null,
+                'l1' => (string) $visa->user?->full_name,
+                'l2' => trim(($visa->type === 'validation' ? 'Validation' : 'Envoi') . ' · ' . ($visa->structure?->nom ?? '') . ' · ' . $visa->signe_le->format('d/m/Y'), ' ·'),
+            ];
+        }
+
+        return $cartes;
+    }
+
+    /** Copie du cachet en PNG où le fond blanc devient transparent. Fichier temporaire à supprimer. */
+    private function cachetTransparent(string $chemin): ?string
+    {
+        $contenu = is_file($chemin) ? @file_get_contents($chemin) : false;
+        $source = $contenu ? @imagecreatefromstring($contenu) : false;
+        if (!$source) {
+            return null;
+        }
+
+        $w = imagesx($source);
+        $h = imagesy($source);
+        $cible = min(1.0, 360 / max($w, $h));
+        $nw = max(1, (int) round($w * $cible));
+        $nh = max(1, (int) round($h * $cible));
+
+        $png = imagecreatetruecolor($nw, $nh);
+        imagealphablending($png, false);
+        imagesavealpha($png, true);
+        imagefill($png, 0, 0, imagecolorallocatealpha($png, 255, 255, 255, 127));
+        imagealphablending($png, true);
+        imagecopyresampled($png, $source, 0, 0, 0, 0, $nw, $nh, $w, $h);
+        imagedestroy($source);
+        imagealphablending($png, false);
+
+        for ($y = 0; $y < $nh; $y++) {
+            for ($x = 0; $x < $nw; $x++) {
+                $rgba = imagecolorat($png, $x, $y);
+                $alphaExistant = ($rgba >> 24) & 0x7F;
+                $r = ($rgba >> 16) & 0xFF;
+                $g = ($rgba >> 8) & 0xFF;
+                $b = $rgba & 0xFF;
+                $clair = min($r, $g, $b);
+                if ($clair >= 245) {
+                    $alpha = 127; // fond blanc : transparent
+                } elseif ($clair >= 205) {
+                    $alpha = max($alphaExistant, (int) round(127 * ($clair - 205) / 40)); // bord adouci
+                } else {
+                    continue;
+                }
+                imagesetpixel($png, $x, $y, imagecolorallocatealpha($png, $r, $g, $b, $alpha));
+            }
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'cachet_') . '.png';
+        imagepng($png, $tmp);
+        imagedestroy($png);
+
+        return $tmp;
+    }
+
+    /** Pose les visas en bas à gauche de la page, côte à côte (puis en lignes superposées si besoin). */
+    private function poserVisasPdf(Fpdi $pdf, array $cartes, float $w, float $h, bool $avecTampon): void
+    {
+        $bw = 46;
+        $bh = 29;
+        $gap = 3;
+        $marge = 8;
+        $cs = 20; // côté du cachet
+        $reserve = ($avecTampon && $w >= 150) ? 66 : 0; // place du tampon « Validé » à droite
+        $parLigne = max(1, (int) floor(($w - 2 * $marge - $reserve + $gap) / ($bw + $gap)));
+
+        foreach ($cartes as $i => $carte) {
+            $x = $marge + ($i % $parLigne) * ($bw + $gap);
+            $y = $h - $marge - $bh - intdiv($i, $parLigne) * ($bh + $gap);
+
+            $pdf->Image($carte['cachet'], $x, $y, $cs, $cs, 'PNG');
+
+            if ($carte['signature'] && ($dim = @getimagesize($carte['signature']))) {
+                $hs = min(15, 26 * $dim[1] / $dim[0]);
+                $ws = $hs * $dim[0] / $dim[1];
+                $pdf->Image($carte['signature'], $x + $cs * 0.6, $y + ($cs - $hs) / 2 + 2, $ws, $hs, 'PNG');
+            }
+
+            $pdf->SetTextColor(15, 23, 42);
+            $pdf->SetFont('Helvetica', 'B', 6.5);
+            $pdf->SetXY($x, $y + $cs + 0.6);
+            $pdf->Cell($bw, 3, $this->t($this->tenir($pdf, $carte['l1'], $bw)), 0, 0);
+            $pdf->SetTextColor(100, 116, 139);
+            $pdf->SetFont('Helvetica', '', 5.5);
+            $pdf->SetXY($x, $y + $cs + 3.6);
+            $pdf->Cell($bw, 3, $this->t($this->tenir($pdf, $carte['l2'], $bw)), 0, 0);
+        }
+    }
+
+    /** Raccourcit un texte jusqu'à ce qu'il tienne dans la largeur donnée (police courante). */
+    private function tenir(Fpdi $pdf, string $texte, float $largeur): string
+    {
+        $encode = fn (string $t) => $this->t($t);
+        while ($texte !== '' && $pdf->GetStringWidth($encode($texte)) > $largeur) {
+            $texte = rtrim(mb_substr($texte, 0, -2)) . '…';
+            if (mb_strlen($texte) <= 4) {
+                break;
+            }
+        }
+
+        return $texte;
+    }
+
+    private function tamponnerImage(DocumentVersion $version, string $sourcePath, string $extension, bool $avecTampon, $visas): ?string
     {
         $document = match ($extension) {
             'jpg', 'jpeg' => imagecreatefromjpeg($sourcePath),
@@ -111,18 +341,22 @@ class DocumentStampingService
         imagealphablending($document, true);
         imagesavealpha($document, true);
 
-        $tamponPng = $this->genererTamponTransparent();
-        $tampon = imagecreatefrompng($tamponPng);
-        @unlink($tamponPng);
+        $tampon = null;
+        if ($avecTampon) {
+            $tamponPng = $this->genererTamponTransparent();
+            $tampon = imagecreatefrompng($tamponPng);
+            @unlink($tamponPng);
 
-        if (!$tampon) {
-            imagedestroy($document);
+            if (!$tampon) {
+                imagedestroy($document);
 
-            return null;
+                return null;
+            }
         }
 
         $docW = imagesx($document);
         $docH = imagesy($document);
+        if ($tampon) {
         $tamponW = imagesx($tampon);
         $tamponH = imagesy($tampon);
 
@@ -144,8 +378,13 @@ class DocumentStampingService
         $destY = max(10, $docH - $tamponH - 25);
         imagecopy($document, $tampon, $destX, $destY, 0, 0, $tamponW, $tamponH);
         imagedestroy($tampon);
+        }
 
-        $relatif = 'dossiers/valides/' . date('Y/m') . '/' . pathinfo($version->fichier_chemin, PATHINFO_FILENAME) . '-valide.' . $extension;
+        if ($visas->isNotEmpty()) {
+            $this->incrusterVisasImage($document, $visas);
+        }
+
+        $relatif = ($avecTampon ? 'dossiers/valides/' : 'dossiers/vises/') . date('Y/m') . '/' . pathinfo($version->fichier_chemin, PATHINFO_FILENAME) . ($avecTampon ? '-valide.' : '-vise.') . $extension;
         Storage::disk('public')->makeDirectory(dirname($relatif));
         $chemin = Storage::disk('public')->path($relatif);
 
@@ -161,6 +400,47 @@ class DocumentStampingService
         imagedestroy($document);
 
         return $relatif;
+    }
+
+    /** Incruste les visas en bas à gauche de l'image (cachet, signature, légende). */
+    private function incrusterVisasImage(\GdImage $document, $visas): void
+    {
+        $police = base_path('vendor/dompdf/dompdf/lib/fonts/DejaVuSans.ttf');
+        $cartes = $this->preparerCartesVisas($visas);
+        $docW = imagesx($document);
+        $docH = imagesy($document);
+
+        $bw = max(150, (int) ($docW * 0.24));
+        $cs = (int) ($bw * 0.44);
+        $taille = max(8, $bw * 0.062);
+        $bh = $cs + (int) ($taille * 3.4);
+        $marge = (int) max(10, $docW * 0.015);
+        $parLigne = max(1, (int) floor(($docW * 0.6) / ($bw + $marge)));
+        imagealphablending($document, true);
+
+        foreach ($cartes as $i => $carte) {
+            $x = $marge + ($i % $parLigne) * ($bw + $marge);
+            $y = $docH - $marge - $bh - intdiv($i, $parLigne) * ($bh + $marge);
+
+            $cachet = @imagecreatefrompng($carte['cachet']);
+            if ($cachet) {
+                imagecopyresampled($document, $cachet, $x, $y, 0, 0, $cs, $cs, imagesx($cachet), imagesy($cachet));
+                imagedestroy($cachet);
+            }
+            if ($carte['signature'] && ($sig = @imagecreatefrompng($carte['signature']))) {
+                $ws = (int) ($bw * 0.52);
+                $hs = (int) min($cs * 0.8, $ws * imagesy($sig) / imagesx($sig));
+                $ws = (int) ($hs * imagesx($sig) / imagesy($sig));
+                imagecopyresampled($document, $sig, $x + (int) ($cs * 0.6), $y + (int) (($cs - $hs) / 2), 0, 0, $ws, $hs, imagesx($sig), imagesy($sig));
+                imagedestroy($sig);
+            }
+
+            $encre = imagecolorallocate($document, 15, 23, 42);
+            $gris = imagecolorallocate($document, 71, 85, 105);
+            imagettftext($document, $taille, 0, $x, $y + $cs + (int) ($taille * 1.5), $encre, $police, $carte['l1']);
+            imagettftext($document, $taille * 0.82, 0, $x, $y + $cs + (int) ($taille * 2.9), $gris, $police, $carte['l2']);
+            @unlink($carte['cachet']);
+        }
     }
 
     /**

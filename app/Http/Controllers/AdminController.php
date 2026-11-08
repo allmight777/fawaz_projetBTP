@@ -22,7 +22,12 @@ class AdminController extends Controller
         $totalUsers = User::count();
         $totalLots = Lot::count();
         $totalStructures = Structure::count();
-        $totalControleurs = User::where('role', 'CONTROLEUR')->count();
+        // Collaborateurs des structures qui donnent leur visa (BC, BE, MOE) + contrôleurs historiques
+        $totalControleurs = User::where(function ($q) {
+            foreach (\App\Support\Espaces::TYPES_VISA as $type) {
+                $q->orWhere(fn ($s) => $s->collaborateursVisa($type));
+            }
+        })->count();
         $usersActifs = User::where('actif', true)->count();
 
         // Données pour les graphiques
@@ -30,13 +35,9 @@ class AdminController extends Controller
         $availableYears = range(2023, date('Y'));
 
         // 1. Répartition des utilisateurs par rôle
-        $roleLabels = ['ADMIN', 'CHEF LOT', 'CONTROLEUR', 'EN_ATTENTE'];
-        $roleData = [
-            User::where('role', 'ADMIN')->count(),
-            User::where('role', 'CHEF LOT')->count(),
-            User::where('role', 'CONTROLEUR')->count(),
-            User::where('role', 'EN_ATTENTE')->count()
-        ];
+        $parRole = User::selectRaw('role, COUNT(*) as total')->groupBy('role')->orderByDesc('total')->pluck('total', 'role');
+        $roleLabels = $parRole->keys()->map(fn ($r) => ucfirst(strtolower(str_replace('_', ' ', $r))))->all();
+        $roleData = $parRole->values()->all();
 
         // 2. Répartition par structure
         $structureLabels = Structure::where('actif', true)->pluck('nom')->toArray();
@@ -96,7 +97,7 @@ class AdminController extends Controller
         $lotData = [];
         foreach (Lot::where('actif', true)->get() as $lot) {
             $lotLabels[] = $lot->nom;
-            $lotData[] = User::where('role', 'CONTROLEUR')->where('lot_id', $lot->id)->where('actif', true)->count();
+            $lotData[] = User::where('lot_id', $lot->id)->where('actif', true)->where('categorie_role', User::CATEGORIE_COLLABORATEUR)->count();
         }
 
         $lotActivityLabels = [];
@@ -109,7 +110,7 @@ class AdminController extends Controller
         }
 
         // Récupérer les utilisateurs pour le tableau
-        $users = User::with(['lot', 'structure'])->latest()->paginate(10);
+        $users = User::with(['lot', 'structure'])->latest()->paginate(200);
 
         return view('admin.dashboard', compact(
             'totalUsers',
@@ -365,6 +366,8 @@ if (!$isActivated && !$isRejected && $oldRole === User::ROLE_EN_ATTENTE) {
                     return User::ROLE_BUREAU_ETUDES_CHEF;
                 case 'maitre_ouvrage':
                     return User::ROLE_MAITRE_OUVRAGE_CHEF;
+                case 'maitre_oeuvre':
+                    return User::ROLE_MAITRE_OEUVRE_CHEF;
                 default:
                     return User::ROLE_CONTROLEUR;
             }
@@ -380,6 +383,8 @@ if (!$isActivated && !$isRejected && $oldRole === User::ROLE_EN_ATTENTE) {
                 return User::ROLE_BUREAU_ETUDES_COLLABORATEUR;
             case 'maitre_ouvrage':
                 return User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR;
+            case 'maitre_oeuvre':
+                return User::ROLE_MAITRE_OEUVRE_COLLABORATEUR;
             default:
                 return User::ROLE_CONTROLEUR;
         }

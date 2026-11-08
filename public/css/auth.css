@@ -1,0 +1,81 @@
+:root { --fs-m: 14px; --fs-s: 12px; }
+/* Pages d'authentification — style Bento. S'appuie sur ui.css. */
+.auth-grid { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; padding: 14px; align-items: start; }
+
+/* Colonne gauche : photo plein cadre, sans voile coloré, texte dans une carte lisible.
+   Hauteur fixe + sticky : la colonne ne bouge pas, quelle que soit la longueur du formulaire. */
+.auth-side {
+    position: sticky; top: 14px; height: calc(100vh - 28px); min-height: 460px;
+    overflow: hidden; border-radius: 32px; background: #0f172a; color: #fff;
+    padding: 28px; display: flex; flex-direction: column; justify-content: flex-start; gap: 20px;
+}
+.auth-side img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 58% 50%; }
+.auth-side > * { position: relative; z-index: 1; }
+.auth-brand b { display: inline-block; background: #fff; color: var(--ink); font-size: 19px; font-weight: 800; letter-spacing: -.02em; padding: 10px 20px; border-radius: 999px; }
+.auth-brand b span { color: var(--accent); }
+.auth-pitch { margin-top: auto; }
+.auth-pitch .chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.auth-pitch .chips span { display: flex; flex-direction: column; gap: 8px; background: rgba(10,15,30,.38); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,.3); padding: 14px 14px 15px; border-radius: 18px; color: #fff; font-weight: 800; font-size: var(--fs-m); line-height: 1.25; transition: background .2s, transform .2s; }
+.auth-pitch .chips span:hover { background: rgba(10,15,30,.5); transform: translateY(-2px); }
+.auth-pitch .chips i { font: 500 var(--fs-s) var(--mono); font-style: normal; letter-spacing: .12em; color: #fff; background: var(--accent); width: fit-content; padding: 3px 9px; border-radius: 999px; }
+
+.auth-main { background: #fff; border-radius: 32px; display: grid; place-items: center; padding: 40px 28px; min-height: calc(100vh - 28px); }
+.auth-box, .auth-card { position: relative; }
+.auth-box { width: 100%; max-width: 520px; background: #fff; border: 1.5px solid #d3dbea; border-radius: 28px; padding: 38px 36px; box-shadow: 0 18px 44px -28px rgba(10,15,30,.28); }
+.auth-box h1 { font-size: 34px; font-weight: 800; letter-spacing: -.04em; line-height: 1.1; }
+.auth-box .sub { color: var(--muted); margin: 8px 0 26px; font-weight: 500; }
+.auth-box .btn-login { width: 100%; padding: 15px 22px; font-size: var(--fs-m); margin-top: 4px; }
+.auth-box .info-box { background: var(--accent-s); color: var(--accent-d); border-radius: 18px; padding: 14px 18px; font-weight: 600; font-size: var(--fs-m); margin-bottom: 22px; }
+.auth-box .session-status { background: var(--accent-s); color: var(--accent-d); border-radius: 16px; padding: 12px 16px; font-weight: 700; margin-bottom: 18px; }
+.auth-box .options { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin: 4px 0 20px; font-size: var(--fs-m); font-weight: 600; }
+.auth-box .options label { display: flex; align-items: center; gap: 9px; color: #2d364a; }
+.auth-box .options a, .auth-foot a { color: var(--accent-d); font-weight: 800; }
+.auth-box .options a:hover, .auth-foot a:hover { text-decoration: underline; text-underline-offset: 3px; }
+.auth-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--muted); font-weight: 600; font-size: var(--fs-m); }
+.req { color: var(--alert); }
+
+/* Écrans Breeze (mot de passe oublié, confirmation, etc.) */
+.auth-card { width: 100%; max-width: 480px; background: #fff; border: 1.5px solid #d3dbea; border-radius: 28px; padding: 40px; box-shadow: 0 24px 60px -30px rgba(10,15,30,.35); }
+.auth-solo { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.auth-solo .auth-brand { text-align: center; margin-bottom: 18px; color: var(--ink); }
+.auth-solo .auth-brand b span { color: var(--accent); }
+
+@media (max-width: 900px) {
+    .auth-grid { grid-template-columns: 1fr; padding: 10px; }
+    .auth-side { position: relative; top: 0; height: auto; min-height: 0; padding: 18px; gap: 120px; }
+    .auth-main { padding: 28px 18px; min-height: 0; }
+    .auth-box { padding: 28px 22px; }
+    .auth-box h1 { font-size: 28px; }
+}
+@media (max-width: 640px) {
+    .auth-pitch .chips { grid-template-columns: 1fr; }
+    .auth-pitch .chips span { flex-direction: row; align-items: center; gap: 12px; padding: 12px 16px; }
+}
+
+/* Assistant d'inscription (par étapes) */
+#wizard.on .step[hidden] { display: none; }
+.wiz-head { margin-bottom: 22px; }
+.wiz-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.wiz-bar i { height: 6px; border-radius: 999px; background: var(--line); transition: background .25s; }
+.wiz-bar i.done { background: var(--accent); }
+.wiz-title { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+.wiz-title b { font: 500 var(--fs-s) var(--mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent-d); }
+.wiz-title span { font-weight: 800; font-size: 18px; letter-spacing: -.02em; }
+.wiz-actions { display: flex; gap: 10px; margin-top: 8px; }
+.wiz-actions .btn-login { flex: 1; width: auto; }
+.wiz-actions .btn-ghost { padding: 15px 24px; border-radius: 999px; background: #fff; border: 1.5px solid var(--line); font-weight: 800; cursor: pointer; }
+.wiz-actions .btn-ghost:hover { border-color: var(--accent); color: var(--accent-d); }
+.wiz-actions [hidden] { display: none; }
+
+/* Dessin d'angle (grue + bâtiment) */
+.auth-deco { position: absolute; top: 16px; right: 16px; width: 104px; height: 104px; pointer-events: none; }
+.auth-deco .bg { fill: var(--accent-s); }
+.auth-deco .ln { fill: none; stroke: var(--accent-d); stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+.auth-deco .ln.thin { stroke-width: 1.4; opacity: .7; }
+.auth-deco .ln.fill { fill: #fff; }
+.auth-deco .solid { fill: var(--accent); }
+.auth-deco .swing { transform-origin: 52px 30px; animation: auth-swing 4.5s ease-in-out infinite; }
+@keyframes auth-swing { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .auth-deco .swing { animation: none; } }
+.auth-box h1 { padding-right: 96px; }
+@media (max-width: 640px) { .auth-deco { width: 72px; height: 72px; top: 12px; right: 12px; } .auth-box h1 { padding-right: 70px; } }

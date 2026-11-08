@@ -3,26 +3,24 @@
 @section('title', 'Nouvel événement')
 
 @section('content')
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+@push('head')<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>@endpush
+<link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.default.min.css" rel="stylesheet" media="print" onload="this.media='all'">
+<script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js" defer></script>
 
 <style>
-    @keyframes fadeInUp {
+@keyframes fadeInUp {
         from { opacity: 0; transform: translateY(18px); }
         to { opacity: 1; transform: translateY(0); }
     }
-
-    .event-form-page { max-width: 980px; margin: 0 auto; }
-
-    .event-form-header {
+.event-form-page { max-width: none; }
+.event-form-header {
         margin-bottom: 22px;
         animation: fadeInUp 0.5s ease-out both;
     }
-    .event-form-header h2 { font-size: 24px; font-weight: 800; color: #1a1a1a; margin: 0 0 4px; }
-    .event-form-header h2 i { color: var(--accent, #2563eb); margin-right: 10px; }
-    .event-form-header p { color: #6b7280; font-size: 13px; margin: 0; }
-
-    .form-section {
+.event-form-header h2 { font-size: 24px; font-weight: 800; color: #1a1a1a; margin: 0 0 4px; }
+.event-form-header h2 i { color: var(--accent, #2563eb); margin-right: 10px; }
+.event-form-header p { color: #6b7280; font-size: var(--fs-m); margin: 0; }
+.form-section {
         background: white;
         border-radius: 18px;
         padding: 26px 28px;
@@ -30,11 +28,10 @@
         margin-bottom: 20px;
         animation: fadeInUp 0.5s ease-out both;
     }
-    .form-section:nth-of-type(1) { animation-delay: 0.05s; }
-    .form-section:nth-of-type(2) { animation-delay: 0.15s; }
-    .form-section:nth-of-type(3) { animation-delay: 0.25s; }
-
-    .section-heading {
+.form-section:nth-of-type(1) { animation-delay: 0.05s; }
+.form-section:nth-of-type(2) { animation-delay: 0.15s; }
+.form-section:nth-of-type(3) { animation-delay: 0.25s; }
+.section-heading {
         display: flex;
         align-items: center;
         gap: 12px;
@@ -42,7 +39,7 @@
         padding-bottom: 14px;
         border-bottom: 1px solid #f0f1f3;
     }
-    .section-heading .section-icon {
+.section-heading .section-icon {
         width: 38px;
         height: 38px;
         border-radius: 10px;
@@ -54,85 +51,44 @@
         font-size: 16px;
         flex-shrink: 0;
     }
-    .section-heading h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin: 0; }
-    .section-heading p { font-size: 12px; color: #9ca3af; margin: 2px 0 0; }
-
-    .form-group { margin-bottom: 20px; }
-    .form-group:last-child { margin-bottom: 0; }
-    .form-row { display: flex; gap: 18px; }
-    .form-row .form-group { flex: 1; }
-    @media (max-width: 640px) {
-        .form-row { flex-direction: column; gap: 0; }
-    }
-
-    label { display: block; margin-bottom: 7px; font-weight: 600; color: #374151; font-size: 13px; }
-    label .required { color: #dc2626; margin-left: 2px; }
-
-    input[type="text"], input[type="datetime-local"], textarea {
+.section-heading h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin: 0; }
+.section-heading p { font-size: var(--fs-s); color: #9ca3af; margin: 2px 0 0; }
+label { display: block; margin-bottom: 7px; font-weight: 600; color: #374151; font-size: var(--fs-m); }
+label .required { color: #dc2626; margin-left: 2px; }
+input[type="text"], input[type="datetime-local"], textarea {
         width: 100%;
         padding: 12px 15px;
         border: 1.5px solid #e5e7eb;
         border-radius: 12px;
-        font-size: 14px;
+        font-size: var(--fs-m);
         font-family: inherit;
         background: #fafbfc;
         transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
     }
-    input[type="text"]:focus, input[type="datetime-local"]:focus, textarea:focus {
+input[type="text"]:focus, input[type="datetime-local"]:focus, textarea:focus {
         outline: none;
         border-color: var(--accent, #2563eb);
         background: white;
         box-shadow: 0 0 0 4px var(--accent-bg, #eff6ff);
     }
-    textarea { min-height: 100px; resize: vertical; }
-    .error-text { color: #dc2626; font-size: 12px; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
-
-    .invite-block { border: 1.5px solid #eef0f3; border-radius: 14px; padding: 18px 20px; }
-    .invite-block + .invite-block { margin-top: 16px; }
-    .invite-block h4 { font-size: 14px; font-weight: 700; color: #1a1a1a; margin-bottom: 4px; display:flex; align-items:center; gap:8px; }
-    .invite-block h4 i { color: var(--accent, #2563eb); }
-    .invite-block p.hint { font-size: 12px; color: #6b7280; margin-bottom: 12px; }
-    .invite-block.disabled { opacity: 0.55; background: #fafafa; }
-    .locked-note { font-size: 12px; color: #9ca3af; font-style: italic; margin: 0; }
-
-    .form-actions {
-        display: flex;
-        justify-content: flex-end;
-        margin-top: 4px;
-        animation: fadeInUp 0.5s ease-out 0.35s both;
+textarea { min-height: 100px; resize: vertical; }
+.error-text { color: #dc2626; font-size: var(--fs-s); margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+.invite-block { border: 1.5px solid #eef0f3; border-radius: 14px; padding: 18px 20px; }
+.invite-block + .invite-block { margin-top: 16px; }
+.invite-block h4 { font-size: var(--fs-m); font-weight: 700; color: #1a1a1a; margin-bottom: 4px; display:flex; align-items:center; gap:8px; }
+.invite-block h4 i { color: var(--accent, #2563eb); }
+.invite-block p.hint { font-size: var(--fs-s); color: #6b7280; margin-bottom: 12px; }
+.invite-block.disabled { opacity: 0.55; background: #fafafa; }
+.locked-note { font-size: var(--fs-s); color: #9ca3af; font-style: italic; margin: 0; }
+.ts-wrapper.single .ts-control, .ts-wrapper .ts-control {
+        border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 7px 10px; font-family: inherit; font-size: var(--fs-m); background: #fafbfc;
     }
-    .btn-submit {
-        background: linear-gradient(135deg, var(--accent, #2563eb), var(--accent-dark, #1a4fc4));
-        color: white;
-        border: none;
-        padding: 15px 34px;
-        border-radius: 12px;
-        font-weight: 700;
-        cursor: pointer;
-        font-size: 15px;
-        display: inline-flex;
-        align-items: center;
-        gap: 10px;
-        box-shadow: 0 6px 18px -4px var(--accent-bg, rgba(37,99,235,0.35));
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-    }
-    .btn-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -6px rgba(0,0,0,0.25); }
-    .btn-submit i { font-size: 14px; }
-
-    /* Tom Select — s'aligne sur le style des champs du site */
-    .ts-wrapper.single .ts-control, .ts-wrapper .ts-control {
-        border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 7px 10px; font-family: inherit; font-size: 14px; background: #fafbfc;
-    }
-    .ts-wrapper.focus .ts-control { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 4px var(--accent-bg, #eff6ff); background: white; }
-    .ts-control .item { background: var(--accent-bg, #eff6ff); color: var(--accent-dark, #1a4fc4); border-radius: 7px; padding: 4px 9px; }
-    .ts-dropdown .active { background: var(--accent-bg, #eff6ff); color: var(--accent-dark, #1a4fc4); }
+.ts-wrapper.focus .ts-control { border-color: var(--accent, #2563eb); box-shadow: 0 0 0 4px var(--accent-bg, #eff6ff); background: white; }
+.ts-control .item { background: var(--accent-bg, #eff6ff); color: var(--accent-dark, #1a4fc4); border-radius: 7px; padding: 4px 9px; }
+.ts-dropdown .active { background: var(--accent-bg, #eff6ff); color: var(--accent-dark, #1a4fc4); }
 </style>
 
 <div class="event-form-page">
-    <div class="event-form-header">
-        <h2><i class="fas fa-calendar-plus"></i> Nouvel événement</h2>
-        <p>Créez un événement et invitez des personnes et/ou des structures entières — les deux peuvent être combinés.</p>
-    </div>
 
     <form method="POST" action="{{ route('events.store') }}">
         @csrf
@@ -235,16 +191,12 @@
 </div>
 
 <script>
-    new TomSelect('#selectPersonnes', {
-        plugins: ['remove_button'],
-        maxItems: null,
+    document.addEventListener('DOMContentLoaded', function () {
+        if (typeof TomSelect === 'undefined') return;
+        new TomSelect('#selectPersonnes', { plugins: ['remove_button'], maxItems: null });
+        @if($peutViserStructure)
+        new TomSelect('#selectStructures', { plugins: ['remove_button'], maxItems: null });
+        @endif
     });
-
-    @if($peutViserStructure)
-    new TomSelect('#selectStructures', {
-        plugins: ['remove_button'],
-        maxItems: null,
-    });
-    @endif
 </script>
 @endsection

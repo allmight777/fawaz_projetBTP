@@ -4,124 +4,56 @@
 
 @section('content')
 <style>
-    .stats-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 20px;
-        margin-bottom: 30px;
-    }
-    .stat-card {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        text-align: center;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .stat-card h3 {
-        font-size: 28px;
-        font-weight: 800;
-        color: #064e3b;
-        margin-bottom: 5px;
-    }
-    .stat-card p {
-        font-size: 13px;
-        color: #6b7280;
-    }
-    .filters-bar {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .filters-form {
+.filters-form {
         display: flex;
-        flex-wrap: wrap;
-        gap: 15px;
-        align-items: flex-end;
-    }
-    .filter-group {
-        flex: 1;
-        min-width: 150px;
-    }
-    .filter-group label {
-        display: block;
-        font-size: 12px;
-        color: #6b7280;
-        margin-bottom: 5px;
-    }
-    .filter-group select, .filter-group input {
+        flex-direction: column;
+        gap: 14px;
         width: 100%;
-        padding: 8px 12px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-        font-size: 14px;
     }
-    .btn-filter {
-        background: #047857;
-        color: white;
-        padding: 8px 20px;
-        border-radius: 8px;
-        border: none;
-        cursor: pointer;
+.filter-group { min-width: 0; }
+.filter-group label {
+        display: block;
+        font-size: var(--fs-s);
+        color: var(--muted);
+        font-weight: 700;
+        margin-bottom: 6px;
     }
-    .btn-reset {
-        background: #6b7280;
-        color: white;
-        padding: 8px 20px;
-        border-radius: 8px;
-        text-decoration: none;
+.filter-group select, .filter-group input { width: 100%; min-width: 0; }
+.filters-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
     }
-    .btn-export {
-        background: #2563eb;
-        color: white;
-        padding: 8px 20px;
-        border-radius: 8px;
-        text-decoration: none;
+.filters-actions > * {
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
-    }
-    .table-container {
-        background: white;
-        border-radius: 16px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-        overflow-x: auto;
-    }
-    table {
         width: 100%;
-        border-collapse: collapse;
+        padding: 12px 20px;
+        border-radius: 999px;
+        font-weight: 800;
+        cursor: pointer;
+        text-decoration: none;
     }
-    th {
-        text-align: left;
-        padding: 12px;
-        background: #f0fdf4;
-        color: #064e3b;
-        font-weight: 600;
-        font-size: 13px;
-    }
-    td {
-        padding: 12px;
-        border-bottom: 1px solid #e5e7eb;
-        font-size: 13px;
-    }
-    .badge-action {
+.btn-filter { background: var(--accent); color: #fff; border: 0; }
+.btn-filter:hover { background: var(--accent-d); }
+.btn-reset { background: #fff; color: var(--ink); border: 1.5px solid var(--line); }
+.btn-reset:hover { border-color: var(--accent); color: var(--accent-d); }
+.btn-export { background: var(--accent-s); color: var(--accent-d); border: 1.5px solid transparent; }
+.btn-export:hover { border-color: var(--accent); }
+.badge-action {
         padding: 4px 10px;
         border-radius: 20px;
-        font-size: 11px;
+        font-size: var(--fs-s);
         font-weight: 600;
         display: inline-block;
     }
-    .badge-creation { background: #dbeafe; color: #2563eb; }
-    .badge-assignation { background: #fef3c7; color: #d97706; }
-    .badge-validation { background: #d1fae5; color: #059669; }
-    .badge-rejet { background: #fee2e2; color: #dc2626; }
-    .pagination-wrapper {
-        margin-top: 20px;
-        text-align: center;
-    }
-    .header-actions {
+.badge-creation { background: #dbeafe; color: #2563eb; }
+.badge-assignation { background: #fef3c7; color: #d97706; }
+.badge-validation { background: #d1fae5; color: #059669; }
+.badge-rejet { background: #fee2e2; color: #dc2626; }
+.header-actions {
         display: flex;
         justify-content: space-between;
         align-items: center;
@@ -129,11 +61,9 @@
         flex-wrap: wrap;
         gap: 15px;
     }
-    @media (max-width: 768px) {
-        .filters-form { flex-direction: column; }
-        .filter-group { width: 100%; }
-        .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    }
+@media (max-width: 768px) {
+.filters-actions { grid-template-columns: 1fr; }
+}
 </style>
 
 <div class="stats-grid">
@@ -161,6 +91,7 @@
 
 <div class="filters-bar">
     <form method="GET" action="{{ route('cheflot.historique.global') }}" class="filters-form">
+        <div class="filters-fields">
         <div class="filter-group">
             <label><i class="fas fa-filter"></i> Action</label>
             <select name="action">
@@ -207,29 +138,33 @@
             <input type="date" name="date_fin" value="{{ request('date_fin') }}">
         </div>
 
-        <button type="submit" class="btn-filter">
-            <i class="fas fa-search"></i> Filtrer
-        </button>
+        </div>
 
-        <a href="{{ route('cheflot.historique.global') }}" class="btn-reset">
-            <i class="fas fa-undo"></i> Réinitialiser
-        </a>
+        <div class="filters-actions">
+            <button type="submit" class="btn-filter">
+                <i class="fas fa-search"></i> Filtrer
+            </button>
 
-        <a href="{{ route('cheflot.historique.export', request()->query()) }}" class="btn-export">
-            <i class="fas fa-download"></i> Exporter CSV
-        </a>
+            <a href="{{ route('cheflot.historique.global') }}" class="btn-reset">
+                <i class="fas fa-undo"></i> Réinitialiser
+            </a>
+
+            <a href="{{ route('cheflot.historique.export', request()->query()) }}" class="btn-export">
+                <i class="fas fa-download"></i> Exporter CSV
+            </a>
+        </div>
     </form>
 </div>
 
 <div class="table-container">
     <div class="header-actions">
         <h3><i class="fas fa-history"></i> Historique des événements</h3>
-        <span style="font-size: 13px; color: #6b7280;">
+        <span style="font-size: var(--fs-m); color: #6b7280;">
             <i class="fas fa-database"></i> {{ $historiques->total() }} événements
         </span>
     </div>
 
-    <table>
+    <table data-no-filter>
         <thead>
             <tr>
                 <th>Date</th>

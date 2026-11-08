@@ -3,127 +3,119 @@
 @section('title', $event->titre)
 
 @section('content')
-<style>
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
-    .btn-back {
-        background: #e5e7eb; color: #333; border: none; padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 13px;
-        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-    }
-    .btn-back:hover { background: #d1d5db; }
-
-    .card { background: white; border-radius: 20px; padding: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .card h3 { font-size: 16px; font-weight: 700; color: #1a1a1a; margin-bottom: 16px; display:flex; align-items:center; gap:8px; }
-    .card h3 i { color: var(--accent, #2563eb); }
-
-    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f3f4f6; font-size: 14px; }
-    .info-row:last-child { border-bottom: none; }
-    .info-row .label { color: #6b7280; }
-    .info-row .value { font-weight: 600; color: #1a1a1a; text-align: right; }
-
-    .participant-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f3f4f6; }
-    .participant-item:last-child { border-bottom: none; }
-
-    .badge-statut { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
-    .badge-confirme { background: #d1fae5; color: #059669; }
-    .badge-en_attente { background: #fef3c7; color: #d97706; }
-    .badge-decline { background: #fee2e2; color: #dc2626; }
-
-    .rsvp-buttons { display: flex; gap: 12px; }
-    .btn-rsvp {
-        flex: 1; border: none; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer;
-        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-    }
-    .btn-confirm { background: #d1fae5; color: #059669; }
-    .btn-confirm:hover { background: #a7f3d0; }
-    .btn-decline { background: #fee2e2; color: #dc2626; }
-    .btn-decline:hover { background: #fecaca; }
-
-    .btn-danger-outline {
-        background: none; border: 1px solid #fecaca; color: #dc2626; padding: 9px 16px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer;
-    }
-    .btn-edit {
-        background: var(--accent-bg, #eff6ff); color: var(--accent, #2563eb); border: none; padding: 9px 16px; border-radius: 10px;
-        font-weight: 600; font-size: 13px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
-    }
-</style>
+@php
+    $initiales = fn ($u) => mb_strtoupper(mb_substr($u->prenom ?: '', 0, 1) . mb_substr($u->nom ?: '', 0, 1)) ?: '?';
+    $libelles = ['confirme' => 'Confirmé', 'decline' => 'Décliné', 'en_attente' => 'En attente'];
+    $compte = $event->participants->groupBy(fn ($p) => $p->pivot->statut)->map->count();
+@endphp
 
 <div class="page-header">
-    <h2 style="font-size:22px; font-weight:700;"><i class="fas fa-calendar-day" style="color:var(--accent,#2563eb);"></i> {{ $event->titre }}</h2>
+    <h2>{{ $event->titre }}</h2>
     <a href="{{ route('events.index') }}" class="btn-back"><i class="fas fa-arrow-left"></i> Retour</a>
 </div>
 
 @if(session('success'))
-    <div style="background:#d4edda; color:#155724; padding:12px 20px; border-radius:10px; margin-bottom:20px;"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
+    <div class="alert alert-success"><i class="fas fa-check-circle"></i> {{ session('success') }}</div>
 @endif
 
-<div class="card">
-    <h3><i class="fas fa-circle-info"></i> Détails</h3>
-    <div class="info-row"><span class="label">Organisateur</span><span class="value">{{ $event->createur->full_name }}</span></div>
-    <div class="info-row"><span class="label">Début</span><span class="value">{{ $event->date_debut->translatedFormat('d/m/Y à H:i') }}</span></div>
-    @if($event->date_fin)
-        <div class="info-row"><span class="label">Fin</span><span class="value">{{ $event->date_fin->translatedFormat('d/m/Y à H:i') }}</span></div>
-    @endif
-    @if($event->lieu)
-        <div class="info-row"><span class="label">Lieu</span><span class="value">{{ $event->lieu }}</span></div>
-    @endif
-    @if($event->structures->isNotEmpty())
-        <div class="info-row"><span class="label">Structure(s) visée(s)</span><span class="value">{{ $event->structures->pluck('nom')->join(', ') }}</span></div>
-    @endif
-    @if($event->description)
-        <div class="info-row"><span class="label">Description</span><span class="value">{{ $event->description }}</span></div>
-    @endif
+<div class="ev-grid">
+    <div class="ev-col">
+        <section class="ev-card">
+            <h3 class="ev-title"><span class="ev-ico"><i class="fas fa-circle-info"></i></span> Détails</h3>
 
-    @if($estCreateur)
-        <div style="margin-top:16px; display:flex; gap:10px;">
-            <a href="{{ route('events.edit', $event) }}" class="btn-edit"><i class="fas fa-pen"></i> Modifier</a>
-            <form method="POST" action="{{ route('events.destroy', $event) }}" onsubmit="return confirm('Supprimer définitivement cet événement ?');">
-                @csrf @method('DELETE')
-                <button type="submit" class="btn-danger-outline"><i class="fas fa-trash"></i> Supprimer</button>
-            </form>
-        </div>
-    @endif
-</div>
-
-@if($monInvitation && !$estCreateur)
-<div class="card">
-    <h3><i class="fas fa-reply"></i> Votre réponse</h3>
-    <p style="font-size:13px; color:#6b7280; margin-bottom:14px;">Statut actuel :
-        <span class="badge-statut badge-{{ $monInvitation->pivot->statut }}">
-            @if($monInvitation->pivot->statut === 'confirme') Confirmé
-            @elseif($monInvitation->pivot->statut === 'decline') Décliné
-            @else En attente
-            @endif
-        </span>
-    </p>
-    <div class="rsvp-buttons">
-        <form method="POST" action="{{ route('events.statut', $event) }}" style="flex:1;">
-            @csrf
-            <input type="hidden" name="statut" value="confirme">
-            <button type="submit" class="btn-rsvp btn-confirm"><i class="fas fa-check"></i> Je serai présent(e)</button>
-        </form>
-        <form method="POST" action="{{ route('events.statut', $event) }}" style="flex:1;">
-            @csrf
-            <input type="hidden" name="statut" value="decline">
-            <button type="submit" class="btn-rsvp btn-decline"><i class="fas fa-xmark"></i> Je ne pourrai pas venir</button>
-        </form>
-    </div>
-</div>
-@endif
-
-<div class="card">
-    <h3><i class="fas fa-users"></i> Participants ({{ $event->participants->count() }})</h3>
-    @forelse($event->participants as $participant)
-        <div class="participant-item">
-            <span>{{ $participant->full_name }}</span>
-            <span class="badge-statut badge-{{ $participant->pivot->statut }}">
-                @if($participant->pivot->statut === 'confirme') Confirmé
-                @elseif($participant->pivot->statut === 'decline') Décliné
-                @else En attente
+            <dl class="ev-details">
+                <div>
+                    <dt>Organisateur</dt>
+                    <dd><span class="ev-av">{{ $initiales($event->createur) }}</span>{{ $event->createur->full_name }}</dd>
+                </div>
+                <div>
+                    <dt>Début</dt>
+                    <dd><i class="far fa-calendar"></i>{{ $event->date_debut->translatedFormat('d/m/Y à H:i') }}</dd>
+                </div>
+                @if($event->date_fin)
+                    <div>
+                        <dt>Fin</dt>
+                        <dd><i class="far fa-calendar-check"></i>{{ $event->date_fin->translatedFormat('d/m/Y à H:i') }}</dd>
+                    </div>
                 @endif
-            </span>
-        </div>
-    @empty
-        <p style="color:#9ca3af; font-size:13px;">Aucun participant invité.</p>
-    @endforelse
+                @if($event->lieu)
+                    <div>
+                        <dt>Lieu</dt>
+                        <dd><i class="fas fa-location-dot"></i>{{ $event->lieu }}</dd>
+                    </div>
+                @endif
+                @if($event->structures->isNotEmpty())
+                    <div class="ev-wide">
+                        <dt>Structure(s) visée(s)</dt>
+                        <dd class="ev-chips">@foreach($event->structures as $structure)<span class="ev-chip">{{ $structure->nom }}</span>@endforeach</dd>
+                    </div>
+                @endif
+                @if($event->description)
+                    <div class="ev-wide">
+                        <dt>Description</dt>
+                        <dd class="ev-desc">{{ $event->description }}</dd>
+                    </div>
+                @endif
+            </dl>
+
+            @if($estCreateur)
+                <div class="ev-actions">
+                    <a href="{{ route('events.edit', $event) }}" class="btn-outline"><i class="fas fa-pen"></i> Modifier</a>
+                    <form method="POST" action="{{ route('events.destroy', $event) }}" onsubmit="return confirm('Supprimer définitivement cet événement ?');">
+                        @csrf @method('DELETE')
+                        <button type="submit" class="btn-danger"><i class="fas fa-trash"></i> Supprimer</button>
+                    </form>
+                </div>
+            @endif
+        </section>
+
+        @if($monInvitation && !$estCreateur)
+            <section class="ev-card">
+                <h3 class="ev-title"><span class="ev-ico"><i class="fas fa-reply"></i></span> Votre réponse</h3>
+                <p class="ev-status">Statut actuel
+                    <span class="ev-badge {{ $monInvitation->pivot->statut }}">{{ $libelles[$monInvitation->pivot->statut] ?? 'En attente' }}</span>
+                </p>
+                <div class="ev-rsvp">
+                    <form method="POST" action="{{ route('events.statut', $event) }}">
+                        @csrf
+                        <input type="hidden" name="statut" value="confirme">
+                        <button type="submit" class="ev-btn ok"><i class="fas fa-check"></i> Je serai présent(e)</button>
+                    </form>
+                    <form method="POST" action="{{ route('events.statut', $event) }}">
+                        @csrf
+                        <input type="hidden" name="statut" value="decline">
+                        <button type="submit" class="ev-btn ko"><i class="fas fa-xmark"></i> Je ne pourrai pas venir</button>
+                    </form>
+                </div>
+            </section>
+        @endif
+    </div>
+
+    <section class="ev-card">
+        <h3 class="ev-title">
+            <span class="ev-ico"><i class="fas fa-users"></i></span> Participants
+            <span class="ev-count">{{ $event->participants->count() }}</span>
+        </h3>
+
+        @if($event->participants->isNotEmpty())
+            <div class="ev-sum">
+                <span class="ev-badge confirme">{{ $compte['confirme'] ?? 0 }} confirmé{{ ($compte['confirme'] ?? 0) > 1 ? 's' : '' }}</span>
+                <span class="ev-badge en_attente">{{ $compte['en_attente'] ?? 0 }} en attente</span>
+                <span class="ev-badge decline">{{ $compte['decline'] ?? 0 }} décliné{{ ($compte['decline'] ?? 0) > 1 ? 's' : '' }}</span>
+            </div>
+        @endif
+
+        <ul class="ev-people">
+            @forelse($event->participants as $participant)
+                <li>
+                    <span class="ev-av">{{ $initiales($participant) }}</span>
+                    <span class="ev-who">{{ $participant->full_name }}@if($participant->structure)<small>{{ $participant->structure->nom }}</small>@endif</span>
+                    <span class="ev-badge {{ $participant->pivot->statut }}">{{ $libelles[$participant->pivot->statut] ?? 'En attente' }}</span>
+                </li>
+            @empty
+                <li class="ev-vide">Aucun participant invité.</li>
+            @endforelse
+        </ul>
+    </section>
 </div>
 @endsection

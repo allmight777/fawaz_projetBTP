@@ -4,32 +4,20 @@
 
 @section('content')
 <style>
-    .form-container { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); max-width: 800px; margin: 0 auto; }
-    .form-group { margin-bottom: 20px; }
-    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #064e3b; margin-bottom: 8px; }
-    .form-group label .required { color: #dc2626; }
-    .form-control {
+.form-control {
         width: 100%; padding: 12px 14px; border: 1px solid #d1d5db; border-radius: 10px;
-        font-size: 14px; background: #fff; transition: border-color 0.2s;
+        font-size: var(--fs-m); background: #fff; transition: border-color 0.2s;
     }
-    .form-control:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 3px rgba(4,120,87,0.1); }
-    textarea.form-control { resize: vertical; min-height: 90px; }
-    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .form-hint { font-size: 12px; color: #6b7280; margin-top: 6px; }
-    .file-drop {
+.form-control:focus { outline: none; border-color: #047857; box-shadow: 0 0 0 3px rgba(4,120,87,0.1); }
+textarea.form-control { resize: vertical; min-height: 90px; }
+.form-hint { font-size: var(--fs-s); color: #6b7280; margin-top: 6px; }
+.file-drop {
         border: 2px dashed #d1d5db; border-radius: 12px; padding: 24px; text-align: center;
         background: #f9fafb; cursor: pointer; transition: border-color 0.2s;
     }
-    .file-drop:hover { border-color: #047857; }
-    .file-drop i { font-size: 28px; color: #047857; margin-bottom: 8px; display: block; }
-    .btn-submit {
-        background: #047857; color: white; border: none; padding: 12px 28px; border-radius: 10px;
-        font-weight: 600; font-size: 14px; cursor: pointer; transition: background 0.2s;
-    }
-    .btn-submit:hover { background: #065f46; }
-    .error-msg { color: #dc2626; font-size: 12px; margin-top: 6px; }
-    .alert-error { background: #fee2e2; color: #dc2626; padding: 12px 16px; border-radius: 10px; margin-bottom: 20px; font-size: 13px; }
-    @media (max-width: 640px) { .form-row { grid-template-columns: 1fr; } }
+.file-drop:hover { border-color: #047857; }
+.file-drop i { font-size: 28px; color: #047857; margin-bottom: 8px; display: block; }
+.error-msg { color: #dc2626; font-size: var(--fs-s); margin-top: 6px; }
 </style>
 
 <div class="form-container">

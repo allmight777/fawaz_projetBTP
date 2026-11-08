@@ -4,17 +4,25 @@
 
 @section('content')
 <style>
+    /* Pleine largeur comme les autres pages : en-tête et suppression sur toute la ligne,
+       modification du profil et mot de passe côte à côte. */
     .profile-container {
-        max-width: 800px;
-        margin: 0 auto;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        align-items: start;
     }
+    .profile-container > .alert-success, .profile-container > .alert-error,
+    .profile-card:has(.info-group), .profile-card:has(.btn-danger) { grid-column: 1 / -1; }
+    .profile-card:has(.info-group) .profile-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 28px; }
+    .profile-card:has(.info-group) .info-group { margin: 0; padding: 0 0 4px; border-bottom: 0; }
 
     .profile-card {
         background: white;
         border-radius: 20px;
         box-shadow: 0 5px 20px rgba(0,0,0,0.05);
         overflow: hidden;
-        margin-bottom: 25px;
+        margin-bottom: 0;
     }
 
     .profile-header {
@@ -48,7 +56,7 @@
 
     .profile-header p {
         color: rgba(255,255,255,0.9);
-        font-size: 14px;
+        font-size: var(--fs-m);
     }
 
     .profile-badge {
@@ -56,7 +64,7 @@
         background: rgba(255,255,255,0.2);
         padding: 5px 15px;
         border-radius: 20px;
-        font-size: 12px;
+        font-size: var(--fs-s);
         margin-top: 10px;
     }
 
@@ -71,7 +79,7 @@
     }
 
     .info-label {
-        font-size: 13px;
+        font-size: var(--fs-m);
         color: #888;
         margin-bottom: 5px;
         display: flex;
@@ -100,7 +108,7 @@
         margin-bottom: 8px;
         font-weight: 600;
         color: #333;
-        font-size: 14px;
+        font-size: var(--fs-m);
     }
 
     label i {
@@ -113,7 +121,7 @@
         padding: 12px 15px;
         border: 2px solid #e0e0e0;
         border-radius: 10px;
-        font-size: 14px;
+        font-size: var(--fs-m);
         transition: all 0.3s;
         font-family: inherit;
     }
@@ -205,6 +213,10 @@
         gap: 20px;
     }
 
+    @media (max-width: 900px) {
+        .profile-container { grid-template-columns: 1fr; }
+        .profile-card:has(.info-group) .profile-body { grid-template-columns: 1fr; }
+    }
     @media (max-width: 768px) {
         .profile-body {
             padding: 20px;
@@ -279,20 +291,20 @@
                     <div class="form-group">
                         <label><i class="fas fa-user"></i> Nom</label>
                         <input type="text" name="nom" value="{{ old('nom', Auth::user()->nom) }}" required>
-                        @error('nom') <span style="color:#dc3545; font-size:12px;">{{ $message }}</span> @enderror
+                        @error('nom') <span style="color:#dc3545; font-size: var(--fs-s);">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="form-group">
                         <label><i class="fas fa-user"></i> Prénom</label>
                         <input type="text" name="prenom" value="{{ old('prenom', Auth::user()->prenom) }}">
-                        @error('prenom') <span style="color:#dc3545; font-size:12px;">{{ $message }}</span> @enderror
+                        @error('prenom') <span style="color:#dc3545; font-size: var(--fs-s);">{{ $message }}</span> @enderror
                     </div>
                 </div>
 
                 <div class="form-group">
                     <label><i class="fas fa-envelope"></i> Email</label>
                     <input type="email" name="email" value="{{ old('email', Auth::user()->email) }}" required>
-                    @error('email') <span style="color:#dc3545; font-size:12px;">{{ $message }}</span> @enderror
+                    @error('email') <span style="color:#dc3545; font-size: var(--fs-s);">{{ $message }}</span> @enderror
                 </div>
 
                 <button type="submit" class="btn-submit">
@@ -317,14 +329,14 @@
                 <div class="form-group">
                     <label><i class="fas fa-lock"></i> Mot de passe actuel</label>
                     <input type="password" name="current_password" required>
-                    @error('current_password') <span style="color:#dc3545; font-size:12px;">{{ $message }}</span> @enderror
+                    @error('current_password') <span style="color:#dc3545; font-size: var(--fs-s);">{{ $message }}</span> @enderror
                 </div>
 
                 <div class="form-row">
                     <div class="form-group">
                         <label><i class="fas fa-key"></i> Nouveau mot de passe</label>
                         <input type="password" name="password" required>
-                        @error('password') <span style="color:#dc3545; font-size:12px;">{{ $message }}</span> @enderror
+                        @error('password') <span style="color:#dc3545; font-size: var(--fs-s);">{{ $message }}</span> @enderror
                     </div>
 
                     <div class="form-group">
@@ -348,7 +360,7 @@
                 Supprimer mon compte
             </div>
 
-            <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
+            <p style="color: #666; margin-bottom: 20px; font-size: var(--fs-m);">
                 Une fois votre compte supprimé, toutes vos données seront définitivement effacées.
             </p>
 

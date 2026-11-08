@@ -40,10 +40,10 @@ Route::get('/dashboard', function () {
 // ============================================================
 
 // === 1. ENTREPRISE ===
-Route::middleware(['auth', 'verified'])->prefix('entreprise')->name('entreprise.')->group(function () {
+Route::middleware(['auth', 'verified', 'garde:espace,entreprise'])->prefix('entreprise')->name('entreprise.')->group(function () {
     // Dashboards
-    Route::get('/chef/dashboard', [EntrepriseController::class, 'chefDashboard'])->name('chef.dashboard');
-    Route::get('/collaborateur/dashboard', [EntrepriseController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard');
+    Route::get('/chef/dashboard', [EntrepriseController::class, 'chefDashboard'])->name('chef.dashboard')->middleware('garde:categorie,chef');
+    Route::get('/collaborateur/dashboard', [EntrepriseController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard')->middleware('garde:categorie,collaborateur');
     // Route pour le téléchargement
 Route::get('/dossiers/{id}/telecharger', [EntrepriseController::class, 'telechargerDossier'])->name('dossiers.telecharger');
 Route::delete('/dossiers/{id}', [EntrepriseController::class, 'destroyDossier'])->name('dossiers.destroy');
@@ -72,28 +72,65 @@ Route::get('/dossiers/{dossier}/versions/{version}/telecharger', [EntrepriseCont
     Route::get('/document-types/{id}/checklist', [EntrepriseController::class, 'getChecklistByType'])->name('document-types.checklist');
 });
 // === 2. BUREAU DE CONTRÔLE ===
-Route::middleware(['auth', 'verified'])->prefix('bureau-controle')->name('bureau_controle.')->group(function () {
+Route::middleware(['auth', 'verified', 'garde:espace,cheflot,controleur'])->prefix('bureau-controle')->name('bureau_controle.')->group(function () {
     Route::get('/chef/dashboard', [BureauControleController::class, 'chefDashboard'])->name('chef.dashboard');
     Route::get('/controles', [BureauControleController::class, 'controles'])->name('controles');
     Route::get('/rapports', [BureauControleController::class, 'rapports'])->name('rapports');
     Route::get('/non-conformites', [BureauControleController::class, 'nonConformites'])->name('non_conformites');
-    Route::get('/collaborateur/dashboard', [BureauControleController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard');
+    Route::get('/collaborateur/dashboard', [BureauControleController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard')->middleware('garde:categorie,collaborateur');
 });
 
-// === 3. BUREAU D'ÉTUDES ===
-Route::middleware(['auth', 'verified'])->prefix('bureau-etudes')->name('bureau_etudes.')->group(function () {
-    Route::get('/chef/dashboard', [BureauEtudesController::class, 'chefDashboard'])->name('chef.dashboard');
-    Route::get('/collaborateur/dashboard', [BureauEtudesController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard');
-    Route::get('/archives', [BureauEtudesController::class, 'archives'])->name('chef.archives');
-    Route::get('/projets', [BureauEtudesController::class, 'projets'])->name('projets');
-    Route::get('/plans', [BureauEtudesController::class, 'plans'])->name('plans');
-    Route::get('/notes-calcul', [BureauEtudesController::class, 'notesCalcul'])->name('notes_calcul');
-});
+// === 3 et 5. BUREAU D'ÉTUDES ET MAÎTRE D'ŒUVRE ===
+// Même fonctionnement que le Bureau de Contrôle (réception, affectation, consolidation, visa) ;
+// seuls changent le préfixe des routes, le layout et la couleur de l'espace.
+foreach ([
+    'bureau_etudes' => ['bureau-etudes', 'bureau_etudes'],
+    'maitre_oeuvre' => ['maitre-oeuvre', 'maitre_oeuvre'],
+] as $typeStructure => [$urlPrefix, $namePrefix]) {
+    $cfgStructure = \App\Support\Espaces::STRUCTURES[$typeStructure];
+
+    // --- Responsable (équivalent du « Chef de Lot » du Bureau de Contrôle)
+    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_chef']])
+        ->prefix($urlPrefix . '/chef')->name($namePrefix . '.chef.')->group(function () {
+            Route::get('/dashboard', [ChefLotController::class, 'dashboard'])->name('dashboard');
+            Route::get('/documents-recus', [ChefLotController::class, 'documentsRecus'])->name('documents.recus');
+            Route::get('/documents-recus/{id}', [ChefLotController::class, 'voirDocumentRecu'])->name('documents.recus.show');
+            Route::get('/documents-recus/{id}/collaborateurs', [ChefLotController::class, 'assignerForm'])->name('documents.recus.collaborateurs');
+            Route::post('/documents-recus/{id}/assigner', [ChefLotController::class, 'assignerDocument'])->name('documents.recus.assigner');
+            Route::post('/documents-recus/{id}/decision', [ChefLotController::class, 'traiterDecision'])->name('documents.recus.decision');
+            Route::get('/documents-recus/{dossier}/versions/{version}/apercu', [ChefLotController::class, 'apercuDocumentRecu'])->name('documents.recus.apercu');
+            Route::get('/documents-recus/{dossier}/versions/{version}/telecharger', [ChefLotController::class, 'telechargerDocumentRecu'])->name('documents.recus.telecharger');
+            Route::get('/statistiques', [ChefLotController::class, 'statistiques'])->name('statistiques');
+            Route::get('/statistiques/export-pdf', [ChefLotController::class, 'exportStatistiquesPdf'])->name('statistiques.export-pdf');
+            Route::get('/controleurs', [ChefLotController::class, 'controleurs'])->name('controleurs');
+            Route::get('/archives', [ArchivageController::class, 'index'])->name('archives.index');
+
+            Route::get('/document-versions/{documentVersion}/affecter', [DocumentAssignmentController::class, 'create'])->name('dossiers.affecter');
+            Route::post('/document-versions/{documentVersion}/affecter', [DocumentAssignmentController::class, 'store'])->name('dossiers.affecter.store');
+            Route::get('/document-versions/{documentVersion}/decision', [DocumentDecisionController::class, 'create'])->name('dossiers.decision');
+            Route::post('/document-versions/{documentVersion}/decision', [DocumentDecisionController::class, 'store'])->name('dossiers.decision.store');
+            Route::post('/observations/{documentObservation}/retenue', [DocumentObservationController::class, 'toggleRetenue'])->name('observations.retenue');
+            Route::get('/dossiers/{dossier}/diffusion', [DocumentTransmissionController::class, 'diffusionForm'])->name('dossiers.diffusion');
+            Route::post('/dossiers/{dossier}/diffusion', [DocumentTransmissionController::class, 'diffuser'])->name('dossiers.diffusion.store');
+        });
+
+    // --- Collaborateur (équivalent du « Contrôleur » du Bureau de Contrôle)
+    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_collab']])
+        ->prefix($urlPrefix . '/collaborateur')->name($namePrefix . '.collaborateur.')->group(function () {
+            Route::get('/dashboard', [ControleurController::class, 'dashboard'])->name('dashboard');
+            Route::get('/affectations/{documentAssignment}/apercu/{dossier}/{version}', [DocumentAssignmentController::class, 'apercuDocument'])->name('affectations.apercu');
+            Route::post('/affectations/{documentAssignment}/reponses', [DocumentAssignmentController::class, 'enregistrerReponses'])->name('affectations.reponses');
+            Route::get('/affectations', [DocumentAssignmentController::class, 'mesAffectations'])->name('affectations.index');
+            Route::get('/affectations/{documentAssignment}', [DocumentAssignmentController::class, 'show'])->name('affectations.show');
+            Route::post('/affectations/{documentAssignment}/terminer', [DocumentAssignmentController::class, 'marquerTermine'])->name('affectations.terminer');
+            Route::post('/affectations/{documentAssignment}/observations', [DocumentObservationController::class, 'store'])->name('affectations.observations.store');
+        });
+}
 
 // === 4. MAÎTRE D'OUVRAGE ===
-Route::middleware(['auth', 'verified'])->prefix('maitre-ouvrage')->name('maitre_ouvrage.')->group(function () {
-    Route::get('/chef/dashboard', [MaitreOuvrageController::class, 'chefDashboard'])->name('chef.dashboard');
-    Route::get('/collaborateur/dashboard', [MaitreOuvrageController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard');
+Route::middleware(['auth', 'verified', 'garde:espace,maitre-ouvrage'])->prefix('maitre-ouvrage')->name('maitre_ouvrage.')->group(function () {
+    Route::get('/chef/dashboard', [MaitreOuvrageController::class, 'chefDashboard'])->name('chef.dashboard')->middleware('garde:categorie,chef');
+    Route::get('/collaborateur/dashboard', [MaitreOuvrageController::class, 'collaborateurDashboard'])->name('collaborateur.dashboard')->middleware('garde:categorie,collaborateur');
     Route::get('/archives', [MaitreOuvrageController::class, 'archives'])->name('archives');
     Route::get('/projets', [MaitreOuvrageController::class, 'projets'])->name('projets');
     Route::get('/chantiers', [MaitreOuvrageController::class, 'chantiers'])->name('chantiers');
@@ -120,6 +157,13 @@ Route::middleware(['auth', 'verified', 'role:ADMIN'])->prefix('admin')->name('ad
     Route::delete('/lots/{lot}', [AdminController::class, 'destroyLot'])->name('lots.destroy');
 
     // Gestion des types de documents
+    Route::prefix('document-categories')->name('document-categories.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DocumentCategoryController::class, 'index'])->name('index');
+        Route::post('/', [\App\Http\Controllers\DocumentCategoryController::class, 'store'])->name('store');
+        Route::put('/{categorie}', [\App\Http\Controllers\DocumentCategoryController::class, 'update'])->name('update');
+        Route::delete('/{categorie}', [\App\Http\Controllers\DocumentCategoryController::class, 'destroy'])->name('destroy');
+    });
+
     Route::prefix('document-types')->name('document-types.')->group(function () {
         Route::get('/', [DocumentTypeController::class, 'index'])->name('index');
         Route::get('/create', [DocumentTypeController::class, 'create'])->name('create');
@@ -149,7 +193,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // ROUTES CHEF LOT
 // ============================================================
 
-Route::middleware(['auth', 'verified'])->prefix('cheflot')->name('cheflot.')->group(function () {
+Route::middleware(['auth', 'verified', 'garde:espace,cheflot'])->prefix('cheflot')->name('cheflot.')->group(function () {
     Route::get('/dashboard', [ChefLotController::class, 'dashboard'])->name('dashboard');
 
 Route::get('/documents-recus', [ChefLotController::class, 'documentsRecus'])->name('documents.recus');
@@ -190,7 +234,7 @@ Route::get('/documents-recus/{dossier}/versions/{version}/telecharger', [ChefLot
 // ROUTES CONTROLEUR
 // ============================================================
 
-Route::middleware(['auth', 'verified'])->prefix('controleur')->name('controleur.')->group(function () {
+Route::middleware(['auth', 'verified', 'garde:espace,controleur'])->prefix('controleur')->name('controleur.')->group(function () {
     Route::get('/dashboard', [ControleurController::class, 'dashboard'])->name('dashboard');
     Route::get('/mon-lot', [ControleurController::class, 'monLot'])->name('mon-lot');
     Route::get('/taches', [ControleurController::class, 'taches'])->name('taches');
@@ -246,6 +290,34 @@ Route::middleware(['auth', 'verified'])->prefix('evenements')->name('events.')->
 // ============================================================
 // ROUTES PROFIL
 // ============================================================
+
+/*
+|--------------------------------------------------------------------------
+| Cachets, demandes d'information, notifications (tous espaces)
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/mes-collaborateurs', [\App\Http\Controllers\CollaborateurController::class, 'index'])->name('collaborateurs.index');
+    Route::get('/mes-collaborateurs/{user}', [\App\Http\Controllers\CollaborateurController::class, 'show'])->name('collaborateurs.show');
+    Route::get('/canevas', [\App\Http\Controllers\CanevasController::class, 'index'])->name('canevas.index');
+    Route::get('/mes-cachets', [\App\Http\Controllers\CachetController::class, 'edit'])->name('cachets.edit');
+    Route::post('/mes-cachets', [\App\Http\Controllers\CachetController::class, 'update'])->name('cachets.update');
+    Route::delete('/mes-cachets', [\App\Http\Controllers\CachetController::class, 'destroy'])->name('cachets.destroy');
+
+    Route::prefix('demandes-information')->name('rfi.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\DemandeInformationController::class, 'index'])->name('index');
+        Route::get('/nouvelle', [\App\Http\Controllers\DemandeInformationController::class, 'create'])->name('create');
+        Route::post('/', [\App\Http\Controllers\DemandeInformationController::class, 'store'])->name('store');
+        Route::get('/{demande}', [\App\Http\Controllers\DemandeInformationController::class, 'show'])->name('show');
+        Route::post('/{demande}/accorder', [\App\Http\Controllers\DemandeInformationController::class, 'accorder'])->name('accorder');
+        Route::post('/{demande}/refuser', [\App\Http\Controllers\DemandeInformationController::class, 'refuser'])->name('refuser');
+        Route::post('/{demande}/recu', [\App\Http\Controllers\DemandeInformationController::class, 'confirmerReception'])->name('recu');
+    });
+
+    Route::get('/notifications', [\App\Http\Controllers\NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/tout-lire', [\App\Http\Controllers\NotificationController::class, 'toutLire'])->name('notifications.tout');
+    Route::get('/notifications/{id}/lire', [\App\Http\Controllers\NotificationController::class, 'lire'])->name('notifications.lire');
+});
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

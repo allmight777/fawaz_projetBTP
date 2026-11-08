@@ -1,50 +1,39 @@
-<x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Transmettre — ') }}{{ $dossier->identifiant }}
-        </h2>
-    </x-slot>
+@extends(auth()->user()->spaceLayout())
 
-    <div class="py-12">
-        <div class="max-w-2xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg p-6">
-                <form method="POST" action="{{ route('dossiers.transmettre', $dossier) }}">
-                    @csrf
+@section('title', 'Transmettre')
 
-                    <div class="mb-4">
-                        <x-input-label value="Structures destinataires" />
-                        <div class="mt-2 space-y-2">
-                            @foreach($structures as $structure)
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="structures[]" value="{{ $structure->id }}" class="rounded border-gray-300 text-emerald-700">
-                                    {{ $structure->nom }} ({{ $structure->libelle_type }})
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
+@section('content')
+<div class="page-header"><h1>Transmettre · {{ $dossier->identifiant }}</h1></div>
 
-                    <div class="mb-4">
-                        <x-input-label value="Utilisateurs destinataires" />
-                        <div class="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                            @foreach($users as $destinataire)
-                                <label class="flex items-center gap-2 text-sm">
-                                    <input type="checkbox" name="users[]" value="{{ $destinataire->id }}" class="rounded border-gray-300 text-emerald-700">
-                                    {{ $destinataire->full_name }}
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-
-                    <x-input-error class="mt-2" :messages="$errors->get('destinataires')" />
-
-                    <div class="mb-4">
-                        <x-input-label for="commentaire" value="Commentaire" />
-                        <textarea id="commentaire" name="commentaire" rows="3" class="mt-1 block w-full border-gray-300 rounded-md shadow-sm"></textarea>
-                    </div>
-
-                    <x-primary-button>Transmettre</x-primary-button>
-                </form>
+<div class="card" style="max-width:760px;">
+    <form method="POST" action="{{ route('dossiers.transmettre', $dossier) }}">
+        @csrf
+        <div class="form-group">
+            <label>Structures destinataires</label>
+            <div style="display:grid; gap:8px;">
+                @foreach($structures as $structure)
+                    <label style="display:flex; gap:10px; align-items:center; font-weight:600;">
+                        <input type="checkbox" name="structures[]" value="{{ $structure->id }}" style="accent-color:var(--accent);"> {{ $structure->nom }} <small style="color:var(--muted)">({{ $structure->libelle_type }})</small>
+                    </label>
+                @endforeach
             </div>
         </div>
-    </div>
-</x-app-layout>
+        <div class="form-group">
+            <label>Utilisateurs destinataires</label>
+            <div style="display:grid; gap:8px; max-height:220px; overflow-y:auto;">
+                @foreach($users as $destinataire)
+                    <label style="display:flex; gap:10px; align-items:center; font-weight:600;">
+                        <input type="checkbox" name="users[]" value="{{ $destinataire->id }}" style="accent-color:var(--accent);"> {{ $destinataire->full_name }}
+                    </label>
+                @endforeach
+            </div>
+        </div>
+        @error('destinataires')<div class="visa-err">{{ $message }}</div>@enderror
+        <div class="form-group">
+            <label for="commentaire">Commentaire</label>
+            <textarea id="commentaire" name="commentaire" rows="3"></textarea>
+        </div>
+        <button type="submit" class="btn-submit">Transmettre</button>
+    </form>
+</div>
+@endsection

@@ -12,40 +12,61 @@ use App\Models\TransmissionDestinataire;
 use App\Models\User;
 use App\Notifications\CorrectionDemandee;
 use App\Notifications\DocumentValide;
+use App\Services\CircuitVisaService;
 use App\Services\DocumentStampingService;
 use Illuminate\Support\Facades\Auth;
 
 class DocumentDecisionController extends Controller
 {
-    // Écran de consolidation : toutes les observations des contrôleurs affectés
+    // Écran de consolidation : observations des collaborateurs de la structure du responsable
     public function create(DocumentVersion $documentVersion)
     {
         abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
-        abort_unless($documentVersion->statut === 'en_analyse', 403, 'Cette version n\'est pas (ou plus) en analyse.');
+        abort_unless(
+            app(CircuitVisaService::class)->peutDecider(Auth::user(), $documentVersion),
+            403,
+            'Votre structure n\'a pas (ou plus) de visa à donner sur cette version.'
+        );
 
         $documentVersion->load([
             'dossier.documentType',
             'affectations.controleur',
             'affectations.observations.auteur',
         ]);
+        $affectations = $this->affectationsDeMaStructure($documentVersion);
 
-        return view('dossiers.decision', compact('documentVersion'));
+        return view('dossiers.decision', compact('documentVersion', 'affectations'));
+    }
+
+    /** Affectations des collaborateurs de la même structure que le responsable connecté. */
+    private function affectationsDeMaStructure(DocumentVersion $version)
+    {
+        $type = Auth::user()->structureVisa();
+
+        return $version->affectations->filter(fn ($a) => $a->controleur?->structureVisa() === $type)->values();
     }
 
     public function store(StoreDocumentDecisionRequest $request, DocumentVersion $documentVersion)
     {
         abort_if($documentVersion->dossier->isArchived(), 403, 'Ce document est archivé et ne peut plus être modifié.');
-        abort_unless($documentVersion->statut === 'en_analyse', 403, 'Cette version n\'est pas (ou plus) en analyse.');
+        $circuit = app(CircuitVisaService::class);
+        abort_unless(
+            $circuit->peutDecider(Auth::user(), $documentVersion),
+            403,
+            'Votre structure n\'a pas (ou plus) de visa à donner sur cette version.'
+        );
 
         $observationsRetenues = $request->observations_retenues ?? [];
+        $documentVersion->load('affectations.controleur');
+        $affectationsIds = $this->affectationsDeMaStructure($documentVersion)->pluck('id');
 
-        DocumentObservation::whereIn(
-            'document_assignment_id',
-            $documentVersion->affectations()->pluck('id')
-        )->update(['retenue' => false]);
+        // Seules les observations de sa propre structure sont concernées.
+        DocumentObservation::whereIn('document_assignment_id', $affectationsIds)->update(['retenue' => false]);
 
         if (!empty($observationsRetenues)) {
-            DocumentObservation::whereIn('id', $observationsRetenues)->update(['retenue' => true]);
+            DocumentObservation::whereIn('id', $observationsRetenues)
+                ->whereIn('document_assignment_id', $affectationsIds)
+                ->update(['retenue' => true]);
         }
 
         DocumentDecision::create([
@@ -57,8 +78,21 @@ class DocumentDecisionController extends Controller
         ]);
 
         if ($request->decision === 'valide') {
-            $documentVersion->update(['statut' => 'valide']);
-            $documentVersion->dossier->update(['statut' => 'valide']);
+            // Visa de validation (cachet + signature du validateur) : enregistré avant le tampon final
+            // pour figurer sur le document validé.
+            app(\App\Services\VisaService::class)->enregistrer($request, Auth::user(), $documentVersion, 'validation');
+
+            $etat = $circuit->appliquerDecision($documentVersion, Auth::user(), 'valide', $request->commentaires);
+
+            if ($etat === 'partiel') {
+                AuditLog::enregistrer('VISA', $documentVersion->dossier_id, [
+                    'document_version_id' => $documentVersion->id,
+                    'structure' => Auth::user()->structureVisa(),
+                ]);
+
+                return redirect()->route('dossiers.show', $documentVersion->dossier_id)
+                    ->with('success', 'Votre visa est enregistré. Le document sera validé lorsque les autres structures auront visé.');
+            }
 
             app(DocumentStampingService::class)->tamponner($documentVersion);
 
@@ -81,8 +115,7 @@ class DocumentDecisionController extends Controller
                 ->with('success', 'Document validé.');
         }
 
-        $documentVersion->update(['statut' => 'a_corriger']);
-        $documentVersion->dossier->update(['statut' => 'a_corriger']);
+        $circuit->appliquerDecision($documentVersion, Auth::user(), 'a_corriger', $request->commentaires);
 
         // Les observations retenues sont transmises automatiquement à l'émetteur du dossier
         $transmission = DocumentTransmission::create([

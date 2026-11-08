@@ -1,77 +1,40 @@
-@extends('layouts.cheflot')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Statistiques du contrôle')
 
 @section('content')
 <style>
-    .filters-bar {
-        background: white;
-        border-radius: 16px;
-        padding: 18px 20px;
-        margin-bottom: 24px;
-        display: flex;
-        gap: 14px;
-        flex-wrap: wrap;
-        align-items: end;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-    .filters-bar .field { display: flex; flex-direction: column; gap: 6px; }
-    .filters-bar label { font-size: 12px; font-weight: 600; color: #6b7280; }
-    .filters-bar input, .filters-bar select {
-        padding: 9px 12px;
-        border: 1px solid #e0e8f0;
-        border-radius: 8px;
-        font-size: 13px;
-        font-family: inherit;
-    }
-    .btn-filter {
-        background: #047857;
+.btn-filter {
+        background: var(--accent);
         color: white;
         border: none;
         padding: 10px 20px;
         border-radius: 8px;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         cursor: pointer;
     }
-    .btn-pdf {
+.btn-pdf {
         background: linear-gradient(135deg, #dc2626, #991b1b);
         color: white;
         border: none;
         padding: 10px 20px;
         border-radius: 8px;
         font-weight: 600;
-        font-size: 13px;
+        font-size: var(--fs-m);
         cursor: pointer;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
         gap: 8px;
     }
-    .btn-pdf:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220,38,38,0.3); }
-
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .stat-card { background: white; border-radius: 20px; padding: 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .stat-info h4 { font-size: 13px; color: #6b7280; margin-bottom: 8px; }
-    .stat-number { font-size: 28px; font-weight: 800; color: #064e3b; }
-    .stat-icon { width: 46px; height: 46px; background: rgba(4,120,87,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #047857; }
-
-    .charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px; }
-    .chart-card { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .chart-card h4 { font-size: 15px; font-weight: 700; color: #064e3b; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
-    .chart-container { position: relative; height: 260px; }
-
-    .table-container { background: white; border-radius: 20px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px; background: #f0fdf4; color: #064e3b; font-weight: 600; font-size: 13px; }
-    td { padding: 12px; border-bottom: 1px solid #e5e7eb; }
-    .progress-bar { background: #e5e7eb; border-radius: 10px; height: 8px; overflow: hidden; }
-    .progress-fill { background: #047857; height: 100%; border-radius: 10px; }
-
-    @media (max-width: 768px) { .charts-grid { grid-template-columns: 1fr; } .stats-grid { grid-template-columns: 1fr; } }
+.btn-pdf:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(220,38,38,0.3); }
+.progress-bar { background: #e5e7eb; border-radius: 10px; height: 8px; overflow: hidden; }
+.progress-fill { background: var(--accent); height: 100%; border-radius: 10px; }
 </style>
 
-<form method="GET" action="{{ route('cheflot.statistiques') }}" class="filters-bar">
+<form method="GET" action="{{ sroute('cheflot.statistiques') }}" class="filters-bar filters-grid">
+    <div class="filters-fields">
     <div class="field">
         <label>Date début</label>
         <input type="date" name="date_debut" value="{{ $dateDebut->format('Y-m-d') }}">
@@ -89,10 +52,13 @@
             @endforeach
         </select>
     </div>
-    <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> Filtrer</button>
-    <a href="{{ route('cheflot.statistiques.export-pdf', request()->query()) }}" class="btn-pdf">
-        <i class="fas fa-file-pdf"></i> Télécharger le rapport PDF
-    </a>
+    </div>
+    <div class="filters-actions two">
+        <button type="submit" class="btn-filter"><i class="fas fa-filter"></i> Filtrer</button>
+        <a href="{{ sroute('cheflot.statistiques.export-pdf', request()->query()) }}" class="btn-pdf">
+            <i class="fas fa-file-pdf"></i> Télécharger le rapport PDF
+        </a>
+    </div>
 </form>
 
 <div class="stats-grid">
@@ -126,11 +92,11 @@
 </div>
 
 <div class="table-container">
-    <h4 style="font-size:15px; font-weight:700; color:#064e3b; margin-bottom:16px; border-bottom:2px solid #e5e7eb; padding-bottom:10px;">
+    <h4 style="font-size: var(--fs-m); font-weight:700; color:var(--accent-d); margin-bottom:16px; border-bottom:2px solid #e5e7eb; padding-bottom:10px;">
         <i class="fas fa-list"></i> Détail par type de document
     </h4>
     <div style="overflow-x:auto;">
-        <table>
+        <table data-no-filter>
             <thead><tr><th>Type de document</th><th>Nombre</th><th>Pourcentage</th><th>Progression</th></tr></thead>
             <tbody>
                 @php $totalType = $stats['total_documents'] > 0 ? $stats['total_documents'] : 1; @endphp
@@ -149,7 +115,9 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
+    const accent = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#047857';
     new Chart(document.getElementById('statutChart').getContext('2d'), {
         type: 'doughnut',
         data: {
@@ -168,7 +136,7 @@
             labels: {!! json_encode(array_keys($stats['par_structure'])) !!},
             datasets: [{
                 data: {!! json_encode(array_values($stats['par_structure'])) !!},
-                backgroundColor: ['#2563eb', '#7c3aed', '#059669']
+                backgroundColor: ['#2563eb', '#7c3aed', accent]
             }]
         },
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
@@ -181,7 +149,7 @@
             datasets: [{
                 label: 'Documents terminés',
                 data: {!! json_encode(array_values($stats['par_collaborateur'])) !!},
-                backgroundColor: '#047857',
+                backgroundColor: accent,
                 borderRadius: 8
             }]
         },
@@ -195,8 +163,8 @@
             datasets: [{
                 label: 'Documents reçus',
                 data: {!! json_encode(array_column($stats['evolution_mensuelle'], 'total')) !!},
-                borderColor: '#047857',
-                backgroundColor: 'rgba(4,120,87,0.1)',
+                borderColor: accent,
+                backgroundColor: accent + '22',
                 tension: 0.4,
                 fill: true,
                 borderWidth: 3,

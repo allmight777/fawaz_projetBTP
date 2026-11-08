@@ -22,7 +22,7 @@ class DossierController extends Controller
     public function index()
     {
         $query = Dossier::visiblePar(Auth::user())
-            ->with(['documentType', 'structureEmettrice', 'lot', 'creePar']);
+            ->with(['documentType', 'structureEmettrice', 'lot', 'creePar', 'circuitVisas']);
 
         if (request()->filled('statut')) {
             $query->where('statut', request('statut'));
@@ -34,7 +34,7 @@ class DossierController extends Controller
             $query->where('document_type_id', request('document_type_id'));
         }
 
-        $dossiers = $query->latest()->paginate(15)->withQueryString();
+        $dossiers = $query->latest()->paginate(200)->withQueryString();
         $structures = Structure::actives()->get();
         $documentTypes = DocumentType::actifs()->get();
 
@@ -105,7 +105,7 @@ class DossierController extends Controller
                 ->with('success', 'Document importé. Complétez la checklist avant soumission.');
         }
 
-        foreach (User::where('role', 'CHEF LOT')->where('actif', true)->get() as $responsable) {
+        foreach (User::chefsBureauControle()->where('actif', true)->get() as $responsable) {
             $responsable->notify(new DocumentRecu($dossier));
         }
 
@@ -130,12 +130,13 @@ class DossierController extends Controller
             'transmissions.emetteur',
             'transmissions.destinataires.structure',
             'transmissions.destinataires.user',
+            'circuitVisas.decideur',
         ]);
 
         // La section observations/décisions (travail interne du Bureau de Contrôle) n'est
         // visible que pour le Chef de Mission/Chef Lot ou un contrôleur affecté à ce dossier —
         // pas pour n'importe quel utilisateur authentifié ni même l'émetteur.
-        $peutVoirAnalyse = Auth::user()->role === 'CHEF LOT'
+        $peutVoirAnalyse = Auth::user()->estChefVisa()
             || DocumentAssignment::whereIn('document_version_id', $dossier->versions->pluck('id'))
                 ->where('controleur_id', Auth::id())
                 ->exists();
@@ -223,7 +224,7 @@ class DossierController extends Controller
 
         AuditLog::enregistrer('CHANGEMENT_VERSION', $dossier->id, ['nouvelle_version' => $nouveauNumero]);
 
-        foreach (User::where('role', 'CHEF LOT')->where('actif', true)->get() as $responsable) {
+        foreach (User::chefsBureauControle()->where('actif', true)->get() as $responsable) {
             $responsable->notify(new NouvelleVersionImportee($dossier->derniereVersion));
         }
 

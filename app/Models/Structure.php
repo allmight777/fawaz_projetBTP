@@ -52,6 +52,7 @@ class Structure extends Model
             'bureau_controle' => 'Bureau de Contrôle',
             'bureau_etudes' => "Bureau d'Études",
             'maitre_ouvrage' => "Maître d'Ouvrage Délégué",
+            'maitre_oeuvre' => "Maître d'Œuvre",
             default => $this->type,
         };
     }

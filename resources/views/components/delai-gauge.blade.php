@@ -41,7 +41,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        font-size: 11px;
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-bottom: 4px;
         font-weight: 600;
@@ -115,7 +115,7 @@
         color: #1a1a1a;
     }
     .delai-gauge-circle-center .delai-gauge-remaining {
-        font-size: 11px;
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-top: 2px;
         max-width: 100px;
@@ -127,7 +127,7 @@
     }
     .delai-gauge-deadline {
         text-align: center;
-        font-size: 12px;
+        font-size: var(--fs-s);
         color: #6b7280;
         margin-top: 10px;
     }
