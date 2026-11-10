@@ -1,8 +1,8 @@
 @extends('emails.layout')
 @section('title', 'Correction demandée')
-@section('subtitle', 'Le Bureau de Contrôle demande une correction de votre document')
+@section('subtitle', ($controleur->structure?->nom ?? 'Une structure').' demande une correction de votre document')
 @section('body')
-    <p>Le Bureau de Contrôle a examiné le document suivant et demande une <strong>correction</strong> avant validation finale.</p>
+    <p><strong>{{ $controleur->structure?->nom ?? 'Une structure de visa' }}</strong> ({{ $controleur->full_name }}) a examiné le document suivant et demande une <strong>correction</strong>.</p>
     @include('emails.partials.infos', ['titre' => 'Informations du document', 'lignes' => [
         'Titre' => $dossier->titre,
         'Type' => $dossier->documentType->nom ?? 'Non défini',

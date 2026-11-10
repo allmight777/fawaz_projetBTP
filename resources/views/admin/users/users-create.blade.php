@@ -85,7 +85,7 @@ input:focus, select:focus {
     <form method="POST" action="{{ route('admin.users.store') }}">
         @csrf
 
-        <div class="form-row">
+        <div class="form-row fluide">
             <!-- ===== IDENTITÉ ===== -->
             <div class="section-divider">
                 <i class="fas fa-id-card"></i> Identité

@@ -114,6 +114,8 @@
             <i class="fas fa-user-plus"></i> Assigner
         </button>
         @endif
+        @php $version = $versionCourante; @endphp
+        @include('partials.modifier-decision')
         <a href="{{ sroute('cheflot.documents.recus') }}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Retour à la liste
         </a>
@@ -151,7 +153,9 @@
     @endif
 </div>
 
+@include('partials.applicable')
 @include('partials.circuit-visas')
+@include('partials.circuit-historique')
 
 <!-- Historique des versions -->
 <div class="card">

@@ -18,10 +18,6 @@
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
 
-@if($dossier->isArchived())
-    <div class="alert alert-info"><strong>Document archivé</strong> — consultation et téléchargement uniquement.</div>
-@endif
-
 <div style="display:grid; gap:14px;">
     <div class="card">
         <div style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:14px; align-items:center;">
@@ -43,12 +39,18 @@
                 @if($derniereVersion && $circuitService->peutDecider($user, $derniereVersion))
                     <a href="{{ sroute('cheflot.dossiers.decision', $derniereVersion) }}" class="btn-submit" style="width:auto; display:inline-block;">Consolidation / Décision</a>
                 @endif
+                @php $version = $derniereVersion; @endphp
+                @include('partials.modifier-decision')
+                @include('partials.partager-circuit', ['libelle' => true])
+                @if($dossier->retransmissiblePar($user) && !($dossier->mode_traitement === 'simple' && $dossier->statut === 'transmis' && $dossier->transmissions->isEmpty()))
+                    <a href="{{ route('dossiers.retransmettre.form', $dossier) }}" class="btn"><i class="fas fa-paper-plane"></i> Transmettre</a>
+                @endif
                 @if($user->estChefVisa() && $dossier->statut === 'valide')
                     <a href="{{ sroute('cheflot.dossiers.diffusion', $dossier) }}" class="btn-submit" style="width:auto; display:inline-block;">Diffuser</a>
                 @endif
                 @if($dossier->archivablePar($user))
                     <form method="POST" action="{{ route('dossiers.archiver', $dossier) }}"
-                          onsubmit="return confirm('Archiver ce document ? Il sera figé : plus aucune modification ni suppression, pour personne. Les parties prenantes seront prévenues par email.')">
+                          data-confirm="{{ $dossier->identifiant_affiche }} · {{ Str::limit($dossier->titre, 60) }}" data-confirm-title="Archiver ce document ?" data-confirm-ok="Archiver" data-confirm-icon="box-archive" data-confirm-tone="warn" data-confirm-details="Il quitte vos documents et passe dans les archives|Il est figé : plus aucune modification ni suppression, pour personne|Les parties prenantes sont prévenues par email">
                         @csrf
                         <button type="submit" class="btn-danger">Archiver</button>
                     </form>
@@ -64,7 +66,9 @@
         @if($dossier->description)<p style="margin-top:16px; color:var(--muted);">{{ $dossier->description }}</p>@endif
     </div>
 
+    @include('partials.applicable')
     @include('partials.circuit-visas')
+    @include('partials.circuit-historique')
 
     <div class="card">
         <h3 class="card-title">Historique des versions</h3>

@@ -150,7 +150,7 @@ input:focus, select:focus, textarea:focus {
         @csrf
         @method('PUT')
 
-        <div class="form-row">
+        <div class="form-row fluide">
             <!-- ===== IDENTITÉ ===== -->
             <div class="section-divider">
                 <i class="fas fa-id-card"></i> Identité
@@ -232,11 +232,10 @@ input:focus, select:focus, textarea:focus {
                 @enderror
             </div>
 
-            <!-- ===== AFFECTATION ===== -->
-            <div class="section-divider">
-                <i class="fas fa-link"></i> Affectation
-            </div>
-
+            <!-- ===== AFFECTATION | STATUT DU COMPTE (même ligne) ===== -->
+            <div class="duo">
+                <div class="duo-col">
+                    <div class="section-divider"><i class="fas fa-link"></i> Affectation</div>
             <div class="form-group">
                 <label><i class="fas fa-layer-group"></i> Lot</label>
                 <select name="lot_id">
@@ -251,12 +250,9 @@ input:focus, select:focus, textarea:focus {
                     <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
                 @enderror
             </div>
-
-            <!-- ===== STATUT ===== -->
-            <div class="section-divider">
-                <i class="fas fa-toggle-on"></i> Statut du compte
-            </div>
-
+                </div>
+                <div class="duo-col">
+                    <div class="section-divider"><i class="fas fa-toggle-on"></i> Statut du compte</div>
             <div class="form-group">
                 <label><i class="fas fa-toggle-on"></i> Statut <span class="required">*</span></label>
                 <select name="statut" id="status-select" required>
@@ -270,6 +266,8 @@ input:focus, select:focus, textarea:focus {
                 @error('statut')
                     <div class="error"><i class="fas fa-exclamation-circle"></i> {{ $message }}</div>
                 @enderror
+            </div>
+                </div>
             </div>
 
             <!-- Champ raison (visible si statut = Inactif ou Refuser) -->
@@ -292,7 +290,7 @@ input:focus, select:focus, textarea:focus {
             <a href="{{ route('admin.users') }}" class="btn-back">
                 <i class="fas fa-arrow-left"></i> Annuler
             </a>
-            <button type="button" class="btn-danger" onclick="if(confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) document.getElementById('delete-form').submit();">
+            <button type="button" class="btn-danger" form="delete-form" data-confirm="Cette action est irréversible." data-confirm-title="Supprimer cet utilisateur ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                 <i class="fas fa-trash"></i> Supprimer
             </button>
         </div>

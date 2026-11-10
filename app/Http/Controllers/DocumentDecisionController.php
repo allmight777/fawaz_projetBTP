@@ -82,37 +82,33 @@ class DocumentDecisionController extends Controller
             // pour figurer sur le document validé.
             app(\App\Services\VisaService::class)->enregistrer($request, Auth::user(), $documentVersion, 'validation');
 
-            $etat = $circuit->appliquerDecision($documentVersion, Auth::user(), 'valide', $request->commentaires);
+            $circuit->appliquerDecision($documentVersion, Auth::user(), 'valide', $request->commentaires);
+            $complets = $circuit->visasComplets($documentVersion);
 
-            if ($etat === 'partiel') {
-                AuditLog::enregistrer('VISA', $documentVersion->dossier_id, [
-                    'document_version_id' => $documentVersion->id,
-                    'structure' => Auth::user()->structureVisa(),
-                ]);
-
-                return redirect()->route('dossiers.show', $documentVersion->dossier_id)
-                    ->with('success', 'Votre visa est enregistré. Le document sera validé lorsque les autres structures auront visé.');
-            }
-
+            // Le document est validé dès le premier visa ; il est re-tamponné et re-scellé à chaque visa
+            // supplémentaire, pour que les cachets de toutes les structures y figurent.
             app(DocumentStampingService::class)->tamponner($documentVersion);
 
-            AuditLog::enregistrer('VALIDATION', $documentVersion->dossier_id, [
+            AuditLog::enregistrer($complets ? 'VALIDATION' : 'VISA', $documentVersion->dossier_id, [
                 'document_version_id' => $documentVersion->id,
+                'structure' => Auth::user()->structureVisa(),
             ]);
 
             $documentVersion->dossier->creePar->notify(new DocumentValide($documentVersion->dossier));
 
-            // Le Maître d'Ouvrage est informé qu'un document est validé (simple notification,
-            // aucune transmission automatique du fichier — ça reste un choix manuel du BC).
-            $utilisateursMO = User::whereHas('structure', fn ($q) => $q->where('type', 'maitre_ouvrage'))
-                ->where('actif', true)
-                ->get();
-            foreach ($utilisateursMO as $utilisateurMO) {
-                $utilisateurMO->notify(new DocumentValide($documentVersion->dossier));
+            if ($complets) {
+                // Le Maître d'Ouvrage est informé quand tous les visas sont obtenus (simple notification,
+                // aucune transmission automatique du fichier — ça reste un choix manuel du BC).
+                $utilisateursMO = User::whereHas('structure', fn ($q) => $q->where('type', 'maitre_ouvrage'))
+                    ->where('actif', true)
+                    ->get();
+                foreach ($utilisateursMO as $utilisateurMO) {
+                    $utilisateurMO->notify(new DocumentValide($documentVersion->dossier));
+                }
             }
 
             return redirect()->route('dossiers.show', $documentVersion->dossier_id)
-                ->with('success', 'Document validé.');
+                ->with('success', $complets ? 'Document validé : tous les visas sont obtenus.' : 'Document validé. Votre visa est enregistré ; les autres structures peuvent encore viser.');
         }
 
         $circuit->appliquerDecision($documentVersion, Auth::user(), 'a_corriger', $request->commentaires);

@@ -6,7 +6,7 @@
 <div class="page-header"><h1>Transmettre · {{ $dossier->identifiant }}</h1></div>
 
 <div class="card" style="max-width:760px;">
-    <form method="POST" action="{{ route('dossiers.transmettre', $dossier) }}">
+    <form method="POST" action="{{ $action ?? route('dossiers.transmettre', $dossier) }}">
         @csrf
         <div class="form-group">
             <label>Structures destinataires</label>

@@ -28,7 +28,7 @@
 <div class="table-container">
     <div class="table-header">
         <h3>Mes derniers documents</h3>
-        <a href="{{ route('entreprise.documents') }}" class="btn-link">Voir tous <i class="fas fa-arrow-right"></i></a>
+        <a href="{{ eroute('entreprise.documents') }}" class="btn-link">Voir tous <i class="fas fa-arrow-right"></i></a>
     </div>
     <div class="table-wrapper">
         <table data-no-filter>
@@ -38,7 +38,7 @@
             <tbody>
                 @forelse($mesDocumentsRecents as $dossier)
                     <tr>
-                        <td><a href="{{ route('entreprise.dossiers.show', $dossier) }}" class="btn-link">{{ $dossier->identifiant_affiche }}</a></td>
+                        <td><a href="{{ eroute('entreprise.dossiers.show', $dossier) }}" class="btn-link">{{ $dossier->identifiant_affiche }}</a></td>
                         <td>{{ Str::limit($dossier->titre, 40) }}</td>
                         <td>{{ $dossier->documentType->nom ?? '—' }}</td>
                         <td><span class="badge {{ $pastilles[$dossier->statut] ?? 'badge-attente' }}">{{ $dossier->statut_label }}</span></td>

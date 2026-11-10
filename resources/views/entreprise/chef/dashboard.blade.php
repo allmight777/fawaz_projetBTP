@@ -86,11 +86,11 @@
     </div>
 
     <div class="t list">
-        <div class="hd"><h2>Derniers documents</h2><a href="{{ route('entreprise.documents') }}">Tout voir →</a></div>
+        <div class="hd"><h2>Derniers documents</h2><a href="{{ eroute('entreprise.documents') }}">Tout voir →</a></div>
         @forelse($documentsRecents as $dos)
             @php $classe = $classes[$dos->statut] ?? 'c'; $dossier = $dos; @endphp
             <div class="r r6">
-                <span class="ref"><a href="{{ route('entreprise.dossiers.show', $dos) }}">{{ $dos->identifiant_affiche }}</a></span>
+                <span class="ref"><a href="{{ eroute('entreprise.dossiers.show', $dos) }}">{{ $dos->identifiant_affiche }}</a></span>
                 <span class="n">{{ \Illuminate\Support\Str::limit($dos->titre ?? 'Sans titre', 60) }}</span>
                 <span class="m">{{ collect([$dos->lot?->nom, $dos->documentType?->nom])->filter()->implode(' · ') ?: '—' }}</span>
                 <span class="p {{ $classe }}">{{ $dos->statut_label }}</span>

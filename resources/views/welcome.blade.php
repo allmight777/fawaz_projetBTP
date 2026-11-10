@@ -128,12 +128,12 @@
         </div>
         <div class="lp-gal" style="margin-top:14px">
             @foreach([
-                ['gallery1', 'Immeuble R+8', 'Construction immeuble R+8', '1541888946425-d81bb19240f5'],
-                ['gallery2', 'Rénovation pont', 'Rénovation pont', '1504917595217-d4dc5ebe6122'],
-                ['gallery3', 'Lycée international', 'Lycée international', '1504384308090-c894fdcc538d'],
-                ['gallery4', 'Complexe sportif', 'Complexe sportif', '1541888946425-d81bb19240f5'],
-                ['gallery5', 'Résidence étudiante', 'Résidence étudiante', '1504917595217-d4dc5ebe6122'],
-                ['gallery6', 'Centre commercial', 'Centre commercial', '1504384308090-c894fdcc538d'],
+                ['gallery1', 'Immeuble R+8', 'Immeuble R+8', '1429497419816-9ca5cfb4571a'],
+                ['gallery2', 'Terrassement et voirie', 'Terrassement & VRD', '1517089596392-fb9a9033e05b'],
+                ['gallery3', 'Centre culturel', 'Centre culturel', '1487958449943-2429e8be8625'],
+                ['gallery4', 'Complexe sportif', 'Complexe sportif', '1531834685032-c34bf0d84c77'],
+                ['gallery5', 'Résidence étudiante', 'Résidence étudiante', '1545324418-cc1a3fa10c00'],
+                ['gallery6', 'Tours de bureaux', 'Tours de bureaux', '1486406146926-c627a92ad1ab'],
             ] as [$fichier, $alt, $legende, $secours])
                 <figure class="reveal">
                     <img src="{{ asset('images/' . $fichier . '.jpg') }}" alt="{{ $alt }}"

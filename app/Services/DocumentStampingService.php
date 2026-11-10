@@ -119,8 +119,9 @@ class DocumentStampingService
                 if ($tamponPng) {
                     $largeur = min(60, $taille['width'] * 0.4);
                     $hauteur = $largeur * $imgH / $imgW;
+                    // À droite, à mi-hauteur : les coins sont réservés aux cachets des structures.
                     $x = $taille['width'] - $largeur - 15;
-                    $y = $taille['height'] - $hauteur - 15;
+                    $y = ($taille['height'] - $hauteur) / 2;
                     $pdf->Image($tamponPng, max(5, $x), max(5, $y), $largeur, $hauteur, 'PNG');
                 }
 
@@ -215,6 +216,7 @@ class DocumentStampingService
             }
             $signature = Storage::disk('public')->path($visa->signature_chemin);
             $cartes[] = [
+                'type' => (string) $visa->structure?->type,
                 'cachet' => $cachet,
                 'signature' => is_file($signature) ? $signature : null,
                 'l1' => (string) $visa->user?->full_name,
@@ -275,7 +277,26 @@ class DocumentStampingService
         return $tmp;
     }
 
-    /** Pose les visas en bas à gauche de la page, côte à côte (puis en lignes superposées si besoin). */
+    /**
+     * Emplacement du cachet de chaque structure : BC en bas à droite, BE en bas à gauche, MOE en bas au centre,
+     * MO en haut à droite. Plusieurs visas d'une même structure se superposent vers l'intérieur de la page.
+     *
+     * @return array{0: float, 1: float} coin supérieur gauche du cachet
+     */
+    private function emplacement(string $type, int $rang, float $w, float $h, float $bw, float $bh, float $marge, float $gap): array
+    {
+        $decalage = $rang * ($bh + $gap);
+
+        return match ($type) {
+            'bureau_controle' => [$w - $marge - $bw, $h - $marge - $bh - $decalage],
+            'maitre_oeuvre' => [($w - $bw) / 2, $h - $marge - $bh - $decalage],
+            'maitre_ouvrage' => [$w - $marge - $bw, $marge + $decalage],
+            // Bureau d'Études et visas sans structure connue : en bas à gauche.
+            default => [$marge, $h - $marge - $bh - $decalage],
+        };
+    }
+
+    /** Pose les visas aux emplacements propres à chaque structure (voir emplacement()). */
     private function poserVisasPdf(Fpdi $pdf, array $cartes, float $w, float $h, bool $avecTampon): void
     {
         $bw = 46;
@@ -283,12 +304,11 @@ class DocumentStampingService
         $gap = 3;
         $marge = 8;
         $cs = 20; // côté du cachet
-        $reserve = ($avecTampon && $w >= 150) ? 66 : 0; // place du tampon « Validé » à droite
-        $parLigne = max(1, (int) floor(($w - 2 * $marge - $reserve + $gap) / ($bw + $gap)));
+        $rangs = [];
 
-        foreach ($cartes as $i => $carte) {
-            $x = $marge + ($i % $parLigne) * ($bw + $gap);
-            $y = $h - $marge - $bh - intdiv($i, $parLigne) * ($bh + $gap);
+        foreach ($cartes as $carte) {
+            $rang = $rangs[$carte['type']] = ($rangs[$carte['type']] ?? -1) + 1;
+            [$x, $y] = $this->emplacement($carte['type'], $rang, $w, $h, $bw, $bh, $marge, $gap);
 
             $pdf->Image($carte['cachet'], $x, $y, $cs, $cs, 'PNG');
 
@@ -375,7 +395,7 @@ class DocumentStampingService
         }
 
         $destX = max(10, $docW - $tamponW - 25);
-        $destY = max(10, $docH - $tamponH - 25);
+        $destY = max(10, (int) (($docH - $tamponH) / 2));
         imagecopy($document, $tampon, $destX, $destY, 0, 0, $tamponW, $tamponH);
         imagedestroy($tampon);
         }
@@ -415,12 +435,12 @@ class DocumentStampingService
         $taille = max(8, $bw * 0.062);
         $bh = $cs + (int) ($taille * 3.4);
         $marge = (int) max(10, $docW * 0.015);
-        $parLigne = max(1, (int) floor(($docW * 0.6) / ($bw + $marge)));
         imagealphablending($document, true);
+        $rangs = [];
 
-        foreach ($cartes as $i => $carte) {
-            $x = $marge + ($i % $parLigne) * ($bw + $marge);
-            $y = $docH - $marge - $bh - intdiv($i, $parLigne) * ($bh + $marge);
+        foreach ($cartes as $carte) {
+            $rang = $rangs[$carte['type']] = ($rangs[$carte['type']] ?? -1) + 1;
+            [$x, $y] = array_map('intval', $this->emplacement($carte['type'], $rang, $docW, $docH, $bw, $bh, $marge, $marge));
 
             $cachet = @imagecreatefrompng($carte['cachet']);
             if ($cachet) {

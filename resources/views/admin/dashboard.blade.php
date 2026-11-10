@@ -203,7 +203,7 @@
                         </a>
                         <form action="{{ route('admin.users.destroy', $user) }}" method="POST" style="display:inline">
                             @csrf @method('DELETE')
-                            <button type="submit" style="background:none; border:none; color:#dc3545; cursor:pointer;" onclick="return confirm('Supprimer ?')">
+                            <button type="submit" style="background:none; border:none; color:#dc3545; cursor:pointer;" data-confirm="Cette action est irréversible." data-confirm-title="Supprimer cet élément ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </form>

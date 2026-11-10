@@ -107,17 +107,10 @@ class MaitreOuvrageController extends Controller
      * Documents archivés visibles par ce Maître d'Ouvrage : consultation seule,
      * réservée au chef.
      */
+    /** Ancienne adresse : les archives de tous les espaces sont sur une page commune. */
     public function archives()
     {
-        abort_unless(Auth::user()->isResponsableOrganisme(), 403, 'Accès réservé au chef du Maître d\'Ouvrage.');
-
-        $dossiers = $this->baseQuery()
-            ->where('statut', 'archive')
-            ->with(['documentType', 'structureEmettrice', 'lot', 'circuitVisas'])
-            ->latest()
-            ->paginate(200);
-
-        return view('maitre_ouvrage.archives', compact('dossiers'));
+        return redirect()->route('archives.index');
     }
 
     /**

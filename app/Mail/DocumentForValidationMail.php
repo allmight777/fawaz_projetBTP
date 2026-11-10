@@ -29,7 +29,7 @@ class DocumentForValidationMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '📋 Demande de validation interne - ' . $this->dossier->titre,
+            subject: 'Demande de validation interne - ' . $this->dossier->titre,
         );
     }
 

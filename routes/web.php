@@ -86,13 +86,18 @@ Route::middleware(['auth', 'verified', 'garde:espace,cheflot,controleur'])->pref
 foreach ([
     'bureau_etudes' => ['bureau-etudes', 'bureau_etudes'],
     'maitre_oeuvre' => ['maitre-oeuvre', 'maitre_oeuvre'],
+    // Le Maître d'Ouvrage est le 4ᵉ niveau de visa : mêmes écrans, dans son propre espace.
+    'maitre_ouvrage' => ['maitre-ouvrage', 'maitre_ouvrage'],
 ] as $typeStructure => [$urlPrefix, $namePrefix]) {
     $cfgStructure = \App\Support\Espaces::STRUCTURES[$typeStructure];
 
     // --- Responsable (équivalent du « Chef de Lot » du Bureau de Contrôle)
-    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_chef']])
-        ->prefix($urlPrefix . '/chef')->name($namePrefix . '.chef.')->group(function () {
-            Route::get('/dashboard', [ChefLotController::class, 'dashboard'])->name('dashboard');
+    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_chef'], 'garde:categorie,chef'])
+        ->prefix($urlPrefix . '/chef')->name($namePrefix . '.chef.')->group(function () use ($typeStructure) {
+            // Le tableau de bord du Maître d'Ouvrage existe déjà (MaitreOuvrageController).
+            if ($typeStructure !== 'maitre_ouvrage') {
+                Route::get('/dashboard', [ChefLotController::class, 'dashboard'])->name('dashboard');
+            }
             Route::get('/documents-recus', [ChefLotController::class, 'documentsRecus'])->name('documents.recus');
             Route::get('/documents-recus/{id}', [ChefLotController::class, 'voirDocumentRecu'])->name('documents.recus.show');
             Route::get('/documents-recus/{id}/collaborateurs', [ChefLotController::class, 'assignerForm'])->name('documents.recus.collaborateurs');
@@ -115,15 +120,45 @@ foreach ([
         });
 
     // --- Collaborateur (équivalent du « Contrôleur » du Bureau de Contrôle)
-    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_collab']])
-        ->prefix($urlPrefix . '/collaborateur')->name($namePrefix . '.collaborateur.')->group(function () {
-            Route::get('/dashboard', [ControleurController::class, 'dashboard'])->name('dashboard');
+    Route::middleware(['auth', 'verified', 'garde:espace,' . $cfgStructure['espace_collab'], 'garde:categorie,collaborateur'])
+        ->prefix($urlPrefix . '/collaborateur')->name($namePrefix . '.collaborateur.')->group(function () use ($typeStructure) {
+            if ($typeStructure !== 'maitre_ouvrage') {
+                Route::get('/dashboard', [ControleurController::class, 'dashboard'])->name('dashboard');
+            }
             Route::get('/affectations/{documentAssignment}/apercu/{dossier}/{version}', [DocumentAssignmentController::class, 'apercuDocument'])->name('affectations.apercu');
             Route::post('/affectations/{documentAssignment}/reponses', [DocumentAssignmentController::class, 'enregistrerReponses'])->name('affectations.reponses');
             Route::get('/affectations', [DocumentAssignmentController::class, 'mesAffectations'])->name('affectations.index');
             Route::get('/affectations/{documentAssignment}', [DocumentAssignmentController::class, 'show'])->name('affectations.show');
             Route::post('/affectations/{documentAssignment}/terminer', [DocumentAssignmentController::class, 'marquerTermine'])->name('affectations.terminer');
             Route::post('/affectations/{documentAssignment}/observations', [DocumentObservationController::class, 'store'])->name('affectations.observations.store');
+        });
+}
+
+// === ENVOI DE DOCUMENTS PAR LES STRUCTURES VISANTES ===
+// Le BC, le BE, le MOE et le MO envoient leurs propres documents exactement comme l'entreprise
+// (informatif ou circuit de visa, correction, transfert du collaborateur vers son chef). Mêmes
+// contrôleurs et mêmes vues ; eroute() traduit les noms « entreprise.* » vers ces routes.
+foreach ([
+    'bureau_controle' => ['bureau-controle', ['cheflot', 'controleur']],
+    'bureau_etudes' => ['bureau-etudes', ['bureau_etudes_chef', 'bureau_etudes_collab']],
+    'maitre_oeuvre' => ['maitre-oeuvre', ['maitre_oeuvre_chef', 'maitre_oeuvre_collab']],
+    'maitre_ouvrage' => ['maitre-ouvrage', ['maitre-ouvrage']],
+] as $typeEnvoi => [$urlEnvoi, $espacesEnvoi]) {
+    Route::middleware(['auth', 'verified', 'garde:espace,' . implode(',', $espacesEnvoi)])
+        ->prefix($urlEnvoi . '/mes-documents')->name($typeEnvoi . '.envoi.')->group(function () {
+            Route::get('/', [EntrepriseController::class, 'documents'])->name('documents');
+            Route::get('/dossiers', [EntrepriseController::class, 'dossiers'])->name('dossiers');
+            Route::get('/dossiers/{dossier}', [EntrepriseController::class, 'showDossier'])->name('dossiers.show')->whereNumber('dossier');
+            Route::get('/dossiers/{id}/telecharger', [EntrepriseController::class, 'telechargerDossier'])->name('dossiers.telecharger');
+            Route::delete('/dossiers/{id}', [EntrepriseController::class, 'destroyDossier'])->name('dossiers.destroy');
+            Route::get('/dossiers/{id}/corriger', [EntrepriseController::class, 'corrigerForm'])->name('dossiers.corriger');
+            Route::post('/dossiers/{id}/corriger', [EntrepriseController::class, 'storeCorrection'])->name('dossiers.corriger.store');
+            Route::get('/dossiers/{dossier}/versions/{version}/telecharger', [EntrepriseController::class, 'telechargerVersion'])->name('dossiers.versions.telecharger');
+            Route::post('/transmettre', [EntrepriseController::class, 'transmettre'])->name('transmettre');
+            Route::get('/a-transferer', [EntrepriseController::class, 'documentsATransferer'])->name('documents.a-transferer');
+            Route::post('/dossiers/{id}/transferer', [EntrepriseController::class, 'transfererDossier'])->name('dossiers.transferer');
+            Route::get('/dossiers/{id}/checklist', [EntrepriseController::class, 'getChecklist'])->name('dossiers.checklist');
+            Route::get('/document-types/{id}/checklist', [EntrepriseController::class, 'getChecklistByType'])->name('document-types.checklist');
         });
 }
 
@@ -264,7 +299,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/dossiers/{dossier}/nouvelle-version', [DossierController::class, 'storeVersion'])->name('dossiers.versions.store');
     Route::get('/dossiers/{dossier}/transmettre', [DocumentTransmissionController::class, 'transmettreForm'])->name('dossiers.transmettre.form');
     Route::post('/dossiers/{dossier}/transmettre', [DocumentTransmissionController::class, 'transmettreSimple'])->name('dossiers.transmettre');
+    Route::get('/dossiers/{dossier}/retransmettre', [DocumentTransmissionController::class, 'retransmettreForm'])->name('dossiers.retransmettre.form');
+    Route::post('/dossiers/{dossier}/retransmettre', [DocumentTransmissionController::class, 'retransmettre'])->name('dossiers.retransmettre');
     Route::post('/dossiers/{dossier}/archiver', [ArchivageController::class, 'archiver'])->name('dossiers.archiver');
+    Route::get('/archives', [ArchivageController::class, 'index'])->name('archives.index');
+    Route::post('/dossiers/{dossier}/applicable', [\App\Http\Controllers\CircuitDecisionController::class, 'rendreApplicable'])->name('dossiers.applicable');
+    Route::post('/document-versions/{documentVersion}/modifier-decision', [\App\Http\Controllers\CircuitDecisionController::class, 'modifierDecision'])->name('dossiers.decision.modifier');
+    Route::post('/dossiers/{dossier}/partager', [\App\Http\Controllers\CircuitDecisionController::class, 'partager'])->name('dossiers.partager');
+    Route::get('/documents-applicables', [\App\Http\Controllers\CircuitDecisionController::class, 'applicables'])->name('documents.applicables');
 
     Route::get('/document-types/{documentType}/checklist', [ChecklistController::class, 'parType'])->name('document-types.checklist');
     Route::get('/document-versions/{documentVersion}/checklist', [ChecklistController::class, 'show'])->name('document-versions.checklist');

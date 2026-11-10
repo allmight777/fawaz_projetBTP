@@ -31,7 +31,7 @@
             <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
                 <button type="submit" class="btn-submit">{{ $user->cachet_chemin ? 'Remplacer' : 'Enregistrer' }}</button>
                 @if($user->cachet_chemin)
-                    <button type="submit" class="btn-danger" form="cachetSuppression" onclick="return confirm('Supprimer votre cachet ?')">Supprimer mon cachet</button>
+                    <button type="submit" class="btn-danger" form="cachetSuppression" data-confirm="Vous devrez en téléverser un nouveau avant de pouvoir viser un document." data-confirm-title="Supprimer votre cachet ?" data-confirm-ok="Supprimer" data-confirm-tone="danger" data-confirm-icon="stamp">Supprimer mon cachet</button>
                 @endif
             </div>
         </form>

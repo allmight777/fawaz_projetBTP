@@ -49,6 +49,29 @@ class DocumentTransmissionController extends Controller
         return redirect()->route('dossiers.show', $dossier)->with('success', 'Document transmis.');
     }
 
+    // Transmission en chaîne : quiconque a reçu un document peut le transmettre à son tour.
+    public function retransmettreForm(Dossier $dossier)
+    {
+        abort_unless($dossier->retransmissiblePar(Auth::user()), 403, 'Vous ne pouvez pas transmettre ce document.');
+
+        $structures = Structure::actives()->get();
+        $users = User::where('actif', true)->where('id', '!=', Auth::id())->orderBy('nom')->get();
+        $action = route('dossiers.retransmettre', $dossier);
+
+        return view('dossiers.transmettre', compact('dossier', 'structures', 'users', 'action'));
+    }
+
+    public function retransmettre(StoreDocumentTransmissionRequest $request, Dossier $dossier)
+    {
+        abort_unless($dossier->retransmissiblePar(Auth::user()), 403, 'Vous ne pouvez pas transmettre ce document.');
+
+        $this->creerTransmission($dossier, 'simple', $request);
+
+        AuditLog::enregistrer('RETRANSMISSION', $dossier->id, ['par' => Auth::id()]);
+
+        return redirect()->back()->with('success', 'Document partagé. Les destinataires le retrouvent' . ($dossier->isArchived() ? ' dans leurs archives' : '') . ' et peuvent à leur tour le partager.');
+    }
+
     // Diffusion manuelle après validation par le Bureau de Contrôle (aucune transmission automatique)
     public function diffusionForm(Dossier $dossier)
     {

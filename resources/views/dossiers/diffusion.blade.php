@@ -44,10 +44,14 @@ textarea { width: 100%; padding: 12px 15px; border: 2px solid #e5e7eb; border-ra
             <textarea name="commentaire" rows="3"></textarea>
         </div>
 
+        @if($dossier->archivablePar(auth()->user()))
         <div class="checkbox-item">
             <input type="checkbox" name="archiver" value="1" id="archiver">
             <label for="archiver" style="margin:0; font-weight:400;">Archiver le dossier après diffusion</label>
         </div>
+        @else
+        <p class="card-hint">L'archivage ne sera possible qu'une fois les visas et cachets de toutes les structures sollicitées obtenus.</p>
+        @endif
 
         <button type="submit" class="btn-submit" style="margin-top:15px;"><i class="fas fa-paper-plane"></i> Diffuser</button>
     </form>

@@ -1,4 +1,4 @@
-@extends('layouts.entreprise')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Gestion des documents')
 
@@ -106,7 +106,7 @@
         <button class="btn-primary" onclick="openModal('transmissionModal')">
             <i class="fas fa-paper-plane"></i> Transmettre un document
         </button>
-        <a href="{{ route('entreprise.dossiers') }}" class="btn-outline-blue">
+        <a href="{{ eroute('entreprise.dossiers') }}" class="btn-outline-blue">
             <i class="fas fa-folder-open"></i> Voir les dossiers
         </a>
     </div>
@@ -115,28 +115,6 @@
 @if(session('success'))<div class="alert alert-success">{{ session('success') }}</div>@endif
 @if(session('error'))<div class="alert alert-error">{{ session('error') }}</div>@endif
 @if($errors->any())<div class="alert alert-error">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>@endif
-
-<!-- Filtres -->
-<div class="filters">
-    <select>
-        <option value="">Tous les types</option>
-        @foreach($documentTypes as $type)
-            <option value="{{ $type->id }}">{{ $type->nom }}</option>
-        @endforeach
-    </select>
-    <select>
-        <option value="">Tous les statuts</option>
-        <option value="en_attente_checklist">En attente</option>
-        <option value="soumis">Soumis</option>
-        <option value="en_analyse">En analyse</option>
-        <option value="valide">Validé</option>
-        <option value="a_corriger">À corriger</option>
-    </select>
-    <input type="text" placeholder="Rechercher...">
-    <button class="btn-outline-blue" style="border:none; background:#eff4ff; padding:8px 16px;">
-        <i class="fas fa-search"></i> Filtrer
-    </button>
-</div>
 
 <!-- Liste des documents -->
 <div class="table-container">
@@ -159,7 +137,7 @@
                 @forelse($documents as $doc)
                 <tr>
                     <td>
-                        <a href="{{ route('entreprise.dossiers.show', $doc->dossier_id) }}" class="btn-link" style="font-weight:600;">
+                        <a href="{{ eroute('entreprise.dossiers.show', $doc->dossier_id) }}" class="btn-link" style="font-weight:600;">
                             #{{ $doc->dossier_id }}
                         </a>
                     </td>
@@ -193,9 +171,13 @@
                     </td>
                     <td>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <a href="{{ route('entreprise.dossiers.telecharger', $doc->dossier_id) }}" class="btn-link" title="Télécharger">
+                            <a href="{{ eroute('entreprise.dossiers.telecharger', $doc->dossier_id) }}" class="btn-link" title="Télécharger">
                                 <i class="fas fa-download"></i>
                             </a>
+
+                            @include('partials.partager-circuit', ['dossier' => $doc->dossier])
+                            @include('partials.partager-bouton', ['dossier' => $doc->dossier])
+                            @include('partials.archiver-action', ['dossier' => $doc->dossier])
 
                             @if($doc->dossier->isArchived())
                                 <span class="badge badge-brouillon" title="Document archivé : lecture seule">
@@ -206,8 +188,8 @@
                                     <i class="fas fa-lock"></i> Visé
                                 </span>
                             @else
-                            <form action="{{ route('entreprise.dossiers.destroy', $doc->dossier_id) }}" method="POST"
-                                  onsubmit="return confirm('Supprimer définitivement ce document ?');" style="display:inline;">
+                            <form action="{{ eroute('entreprise.dossiers.destroy', $doc->dossier_id) }}" method="POST"
+                                  data-confirm="{{ $doc->dossier->identifiant_affiche }} · {{ \Illuminate\Support\Str::limit($doc->dossier->titre, 60) }}" data-confirm-title="Supprimer ce document ?" data-confirm-ok="Supprimer définitivement" data-confirm-tone="danger" data-confirm-details="Le document et ses versions seront définitivement supprimés|Cette action est irréversible" style="display:inline;">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn-link" style="border:none; background:none; cursor:pointer; color:#dc2626;" title="Supprimer">
@@ -240,7 +222,7 @@
 <!-- Modal de transmission -->
 <div class="modal" id="transmissionModal">
     <div class="modal-content">
-        <form id="transmissionForm" action="{{ route('entreprise.transmettre') }}" method="POST" enctype="multipart/form-data" novalidate>
+        <form id="transmissionForm" action="{{ eroute('entreprise.transmettre') }}" method="POST" enctype="multipart/form-data" novalidate>
             @csrf
 
             <div id="documentsContainer"></div>
@@ -478,8 +460,8 @@
                 <label>Destinataires <span class="required destinataire-required">*</span></label>
                 <div class="destinataire-section-inner" style="background:#f8faff; border-radius:8px; padding:16px; border:1px solid #e0e8f0;">
                     <select class="destinataire-type-select" onchange="updateDestinataires(this)">
-                        <option value="tout_le_monde">Tout le monde</option>
-                        <option value="specifique">Spécifique (individus)</option>
+                        <option value="tout_le_monde">Tous mes collaborateurs</option>
+                        <option value="specifique">Collaborateurs spécifiques</option>
                     </select>
                     <div class="search-wrapper" style="margin-top:8px; position:relative;">
                         <i class="fas fa-search" style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:#888; font-size: var(--fs-m);"></i>
@@ -580,7 +562,7 @@
             destinataireInfo.innerHTML = '<i class="fas fa-info-circle"></i> En circuit de visa, le document est automatiquement envoyé aux structures cochées ci-dessus. Vous pouvez en plus le partager à des collègues (optionnel).';
             // Le partage à des collègues reste possible en plus du circuit : choix « Aucun » par défaut.
             const selectDest = block.querySelector('.destinataire-type-select');
-            if (selectDest) selectDest.querySelector('option[value="specifique"]').textContent = 'Spécifique (partager à un collègue)';
+            if (selectDest) selectDest.querySelector('option[value="specifique"]').textContent = 'Collaborateurs spécifiques';
             if (selectDest && !selectDest.querySelector('option[value="aucun"]')) {
                 selectDest.insertBefore(new Option('Aucun (circuit de visa uniquement)', 'aucun'), selectDest.firstChild);
             }
@@ -598,7 +580,7 @@
             checklistSection.style.display = 'none';
             const typeSelect = block.querySelector('.destinataire-type-select');
             if (typeSelect) {
-                typeSelect.querySelector('option[value="specifique"]').textContent = 'Spécifique (individus)';
+                typeSelect.querySelector('option[value="specifique"]').textContent = 'Collaborateurs spécifiques';
                 const optionAucun = typeSelect.querySelector('option[value="aucun"]');
                 if (optionAucun) {
                     if (typeSelect.value === 'aucun') typeSelect.value = 'tout_le_monde';
@@ -634,7 +616,7 @@
         checklistItemsEl.innerHTML = `<p style="font-size: var(--fs-m); color:#888; text-align:center; padding:16px 0;"><i class="fas fa-spinner fa-spin"></i> Chargement...</p>`;
         checklistState[index] = { items: [], checked: {} };
 
-        fetch(`/entreprise/document-types/${typeId}/checklist`)
+        fetch(@json(eroute('entreprise.document-types.checklist', ['id' => '__ID__'])).replace('__ID__', typeId))
             .then(r => r.json())
             .then(data => {
                 checklistState[index].items = data;
@@ -892,4 +874,5 @@
         });
     });
 </script>
+@include('partials.partage-informatif')
 @endsection

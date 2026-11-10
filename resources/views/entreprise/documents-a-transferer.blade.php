@@ -1,4 +1,4 @@
-@extends('layouts.entreprise')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Documents à transférer')
 
@@ -56,7 +56,7 @@
 
 <div class="page-header">
     <h2><i class="fas fa-share-square"></i> Documents à transférer</h2>
-    <a href="{{ route('entreprise.documents') }}" class="btn-outline-blue">
+    <a href="{{ eroute('entreprise.documents') }}" class="btn-outline-blue">
         <i class="fas fa-file-alt"></i> Voir tous les documents
     </a>
 </div>
@@ -97,7 +97,7 @@
                     <td style="font-size: var(--fs-m); color:#888;">{{ $dossier->created_at->format('d/m/Y H:i') }}</td>
                     <td>
                         <div style="display:flex; gap:8px;">
-                            <a href="{{ route('entreprise.dossiers.show', $dossier->id) }}" class="btn-outline-blue" style="padding:8px 14px;">
+                            <a href="{{ eroute('entreprise.dossiers.show', $dossier->id) }}" class="btn-outline-blue" style="padding:8px 14px;">
                                 <i class="fas fa-eye"></i>
                             </a>
                             <button class="btn-transferer" onclick='openTransferModal({{ $dossier->id }}, @json(Str::limit($dossier->titre, 40)), @json($dossier->structures_souhaitees), @json($dossier->identifiant_affiche))'>
@@ -167,7 +167,7 @@
         document.getElementById('transferDocRef').textContent = ref || ('#' + dossierId);
         // Structures souhaitées par le collaborateur : pré-cochées, le chef peut les modifier.
         document.querySelectorAll('#circuitChoix input').forEach(function (c) { c.checked = (souhaitees || []).indexOf(c.value) !== -1; });
-        document.getElementById('transferForm').action = `/entreprise/dossiers/${dossierId}/transferer`;
+        document.getElementById('transferForm').action = @json(eroute('entreprise.dossiers.transferer', ['id' => '__ID__'])).replace('__ID__', dossierId);
         document.getElementById('dossierRef').value = dossierId;
         document.getElementById('transferModal').classList.add('active');
     }

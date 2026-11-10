@@ -29,7 +29,7 @@ class DocumentResubmittedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '🔁 Document corrigé et resoumis (V' . $this->version->numero_version . ') - ' . $this->dossier->titre,
+            subject: 'Document corrigé et resoumis (V' . $this->version->numero_version . ') - ' . $this->dossier->titre,
         );
     }
 

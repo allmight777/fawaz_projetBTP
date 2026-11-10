@@ -122,7 +122,7 @@
                             </button>
                             <form action="{{ route('admin.document-types.checklist.destroy', [$documentType->id, $item->id]) }}"
                                   method="POST" style="display:inline-block;"
-                                  onsubmit="return confirm('Supprimer ce critère ?')">
+                                  data-confirm="Ce critère sera retiré de la liste de contrôle." data-confirm-title="Supprimer ce critère ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" class="btn-sm btn-delete">

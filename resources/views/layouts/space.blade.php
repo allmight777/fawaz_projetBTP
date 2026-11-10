@@ -59,6 +59,7 @@
         if (m && m.open && !m.contains(e.target)) m.open = false;
     });
 </script>
+<script src="{{ asset('js/confirm.js') }}?v={{ @filemtime(public_path('js/confirm.js')) }}" defer></script>
 <script src="{{ asset('js/tables.js') }}?v={{ @filemtime(public_path('js/tables.js')) }}" defer></script>
 @stack('scripts')
 </body>

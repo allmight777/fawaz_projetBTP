@@ -67,8 +67,7 @@ class DossierController extends Controller
 
         $modeTraitement = $documentType->mode_traitement;
 
-        $dossier = Dossier::create([
-            'identifiant' => Dossier::genererIdentifiant($documentType),
+        $dossier = Dossier::creerAvecIdentifiant($documentType, [
             'document_type_id' => $documentType->id,
             // La structure émettrice est toujours celle de l'utilisateur connecté,
             // jamais une valeur choisie librement dans le formulaire.

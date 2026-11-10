@@ -11,40 +11,44 @@ use Illuminate\Support\Facades\Auth;
 
 class ArchivageController extends Controller
 {
-    // Liste des dossiers validés (archivables ou déjà archivés) pour le chef de mission
+    // Archives de l'utilisateur, triées par structure émettrice (voir Dossier::scopeArchivesPour pour les règles de visibilité).
     public function index()
     {
         $user = Auth::user();
-        abort_unless($user->estChefVisa(), 403, 'Réservé aux responsables du Bureau de Contrôle, du Bureau d\'Études et du Maître d\'Œuvre.');
 
-        // Le Bureau de Contrôle archive et voit tous les documents validés ; les autres structures
-        // consultent les archives des documents qui leur ont été adressés.
-        $dossiers = Dossier::whereIn('statut', ['valide', 'archive'])
-            ->when(!$user->isChefLot(), fn ($q) => $q->visiblePar($user))
+        $dossiers = Dossier::archivesPour($user)
             ->with(['documentType', 'structureEmettrice', 'lot', 'creePar', 'versions', 'circuitVisas'])
-            ->latest()
+            ->leftJoin('structures', 'structures.id', '=', 'dossiers.structure_emettrice_id')
+            ->select('dossiers.*')
+            ->orderBy('structures.nom')
+            ->latest('dossiers.updated_at')
             ->paginate(200);
 
-        return view('cheflot.archives', compact('dossiers'));
+        return view('dossiers.archives', compact('dossiers'));
     }
 
     public function archiver(Dossier $dossier)
     {
-        abort_unless(Auth::user()->isChefLot(), 403, 'Seul le Bureau de Contrôle peut archiver un document.');
+        $user = Auth::user();
+        abort_if($dossier->isArchived(), 403, 'Ce document est déjà archivé.');
 
-        if (!$dossier->archivablePar(Auth::user())) {
-            return redirect()->back()->with('error', 'Seuls les documents validés ou transmis peuvent être archivés.');
+        abort_unless($dossier->droitArchiver($user), 403, 'Vous ne pouvez pas archiver ce document.');
+
+        if (!$dossier->archivablePar($user)) {
+            return redirect()->back()->with('error', $dossier->statut === 'valide'
+                ? 'Ce document ne peut pas encore être archivé : toutes les structures sollicitées doivent avoir apposé leur visa et leur cachet.'
+                : 'Seuls les documents transmis, ou validés avec tous les visas, peuvent être archivés.');
         }
 
         $dossier->update(['statut' => 'archive']);
 
-        AuditLog::enregistrer('ARCHIVAGE', $dossier->id);
+        AuditLog::enregistrer('ARCHIVAGE', $dossier->id, ['par' => $user->id]);
 
         foreach ($this->partiesPrenantes($dossier) as $utilisateur) {
             $utilisateur->notify(new DocumentArchive($dossier));
         }
 
-        return redirect()->route('dossiers.show', $dossier)->with('success', 'Document archivé.');
+        return redirect()->route('archives.index')->with('success', 'Document archivé : il a quitté « Mes documents » et se trouve maintenant dans vos archives.');
     }
 
     /**
@@ -60,7 +64,10 @@ class ArchivageController extends Controller
         $utilisateurs = User::where('actif', true)
             ->where(function ($query) use ($dossier, $controleurIds) {
                 $query->where('id', $dossier->cree_par)
-                    ->orWhereIn('id', $controleurIds);
+                    ->orWhereIn('id', $controleurIds)
+                    // Ceux à qui le document a été transmis (personnellement ou via leur structure) le retrouvent dans leurs archives.
+                    ->orWhereIn('id', \App\Models\TransmissionDestinataire::whereIn('document_transmission_id', $dossier->transmissions()->pluck('id'))->whereNotNull('user_id')->pluck('user_id'))
+                    ->orWhereIn('structure_id', \App\Models\TransmissionDestinataire::whereIn('document_transmission_id', $dossier->transmissions()->pluck('id'))->whereNotNull('structure_id')->pluck('structure_id'));
 
                 if ($dossier->lot_id) {
                     $query->orWhere(function ($q) use ($dossier) {

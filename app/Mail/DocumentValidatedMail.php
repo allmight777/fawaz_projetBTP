@@ -32,7 +32,7 @@ class DocumentValidatedMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '✅ Document validé - ' . $this->dossier->titre,
+            subject: 'Document validé - ' . $this->dossier->titre,
         );
     }
 

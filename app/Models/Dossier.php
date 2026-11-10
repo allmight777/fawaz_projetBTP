@@ -24,7 +24,11 @@ class Dossier extends Model
     'identifiant',
     'necessite_transfert_chef',
     'structure_cible',
+    'applicable_le',
+    'applicable_par',
 ];
+
+    protected $casts = ['applicable_le' => 'datetime'];
 
     protected static function booted(): void
     {
@@ -60,6 +64,30 @@ class Dossier extends Model
         }
 
         return $identifiant;
+    }
+
+    /**
+     * Crée un dossier avec un identifiant unique, même si deux envois arrivent
+     * en même temps : la vérification « existe déjà ? » ne suffit pas, c'est la
+     * contrainte d'unicité qui tranche, et on réessaie avec le suffixe suivant.
+     * Chaque tentative est dans un point de sauvegarde (indispensable sous
+     * PostgreSQL, où une violation fait sinon échouer toute la transaction).
+     */
+    public static function creerAvecIdentifiant(DocumentType $documentType, array $attributs): static
+    {
+        for ($essai = 0; ; $essai++) {
+            $identifiant = static::genererIdentifiant($documentType);
+            try {
+                return \Illuminate\Support\Facades\DB::transaction(
+                    fn () => static::create(['identifiant' => $identifiant] + $attributs)
+                );
+            } catch (\Illuminate\Database\UniqueConstraintViolationException $e) {
+                if ($essai >= 20) {
+                    throw $e;
+                }
+                usleep(random_int(5_000, 40_000));
+            }
+        }
     }
 
     public function documentType(): BelongsTo
@@ -109,6 +137,85 @@ class Dossier extends Model
         return !$this->aEteVise();
     }
 
+    public function evenements(): HasMany
+    {
+        return $this->hasMany(CircuitEvenement::class)->orderBy('created_at')->orderBy('id');
+    }
+
+    public function estApplicable(): bool
+    {
+        return $this->applicable_le !== null && $this->statut === 'valide';
+    }
+
+    /** Tous les visas demandés sur la dernière version sont obtenus. */
+    public function visasComplets(): bool
+    {
+        $derniere = $this->circuitVisas()->max('document_version_id');
+        if (!$derniere) {
+            return $this->statut === 'valide';
+        }
+
+        return !$this->circuitVisas()->where('document_version_id', $derniere)->where('statut', '!=', 'valide')->exists();
+    }
+
+    /** Seul le chef de l'entreprise émettrice rend un document applicable, une fois tous les visas obtenus. */
+    public function applicablePar(User $user): bool
+    {
+        return $this->statut === 'valide'
+            && $this->applicable_le === null
+            && $user->isResponsableOrganisme()
+            && $user->structure_id !== null
+            && $user->structure_id === $this->structure_emettrice_id
+            && $this->visasComplets();
+    }
+
+    /**
+     * Qui a reçu un document peut le transmettre à son tour : l'émetteur, ou tout utilisateur à qui il a été
+     * transmis (personnellement ou via sa structure). La retransmission donne la consultation, jamais un droit de visa.
+     */
+    public function retransmissiblePar(User $user): bool
+    {
+        // Partageable à tout moment (en cours de visa, validé ou archivé) : le partage informatif ne modifie rien.
+        if ($this->statut === 'brouillon') {
+            return false;
+        }
+
+        return $this->cree_par === $user->id
+            || static::transmisA($user)->whereKey($this->id)->exists();
+    }
+
+    /** Le document appartient-il à l'utilisateur (émis par lui) ou à sa structure ? Sinon on le lui a partagé ou adressé. */
+    public function appartientA(User $user): bool
+    {
+        return $this->cree_par === $user->id
+            || ($user->structure_id !== null && $user->structure_id === $this->structure_emettrice_id);
+    }
+
+    /**
+     * Identifiants des documents qu'on a partagés avec l'utilisateur de façon informative (transmission simple,
+     * nominativement ou à sa structure), hors ses propres documents. Sert aux titres « Partagés avec moi ».
+     *
+     * @return array<int, int>
+     */
+    public static function idsPartagesAvec(User $user): array
+    {
+        return DocumentTransmission::where('mode', 'simple')
+            ->whereHas('destinataires', function ($q) use ($user) {
+                $q->where('user_id', $user->id);
+                if ($user->structure_id) {
+                    $q->orWhere('structure_id', $user->structure_id);
+                }
+            })
+            ->whereHas('dossier', fn ($d) => $d->where('cree_par', '!=', $user->id)
+                ->when($user->structure_id, fn ($x) => $x->where(fn ($y) => $y->whereNull('structure_emettrice_id')->orWhere('structure_emettrice_id', '!=', $user->structure_id))))
+            ->pluck('dossier_id')->unique()->values()->all();
+    }
+
+    public function scopeApplicables($query)
+    {
+        return $query->where('statut', 'valide')->whereNotNull('applicable_le');
+    }
+
     public function circuitVisas(): HasMany
     {
         return $this->hasMany(CircuitVisa::class);
@@ -135,6 +242,12 @@ class Dossier extends Model
     }
 
     public function derniereVersion()
+    {
+        return $this->getLatestVersion();
+    }
+
+    // Permet aussi l'accès en propriété ($dossier->derniereVersion), utilisé par plusieurs contrôleurs.
+    public function getDerniereVersionAttribute()
     {
         return $this->getLatestVersion();
     }
@@ -167,7 +280,7 @@ class Dossier extends Model
             'transmis' => 'Transmis',
             'en_analyse' => 'En analyse',
             'en_cours' => 'En attente de visa',
-            'valide' => 'Validé',
+            'valide' => $this->applicable_le ? 'Applicable' : 'Validé',
             'a_corriger' => 'À corriger',
             'rejete' => 'Rejeté',
             'archive' => 'Archivé',
@@ -234,6 +347,11 @@ class Dossier extends Model
             }
 
             $q->orWhere(fn ($tq) => $tq->transmisA($user));
+
+            // Un document « applicable » sert de référence à toutes les structures du chantier.
+            if ($user->structure_id) {
+                $q->orWhere(fn ($aq) => $aq->applicables());
+            }
         });
     }
 
@@ -278,12 +396,58 @@ class Dossier extends Model
     }
 
     /**
-     * Seul le responsable du Bureau de Contrôle archive, et seulement un document
-     * validé ou transmis. Les autres structures consultent les archives sans pouvoir
-     * en créer.
+     * Qui peut archiver : l'émetteur du document (quel que soit son rôle), le chef de sa structure, ou le chef
+     * d'une structure à qui le document a été transmis (le Bureau de Contrôle archive ce qu'il a visé).
+     * Seulement un document transmis, ou validé avec tous les visas obtenus (voir archivable()).
      */
     public function archivablePar(User $user): bool
     {
-        return $user->isChefLot() && in_array($this->statut, ['valide', 'transmis'], true);
+        return $this->archivable() && $this->droitArchiver($user);
+    }
+
+    /**
+     * Un document n'est archivable que s'il est transmis (informatif) ou validé AVEC les visas de toutes les
+     * structures sollicitées : « Validé » dès le premier visa ne suffit pas.
+     */
+    public function archivable(): bool
+    {
+        return $this->statut === 'transmis' || ($this->statut === 'valide' && $this->visasComplets());
+    }
+
+    /** Droit d'archiver ce document, indépendamment de son statut (voir archivablePar). */
+    public function droitArchiver(User $user): bool
+    {
+        if ($this->cree_par === $user->id) {
+            return true;
+        }
+
+        if (!$user->peutViser()) {
+            return false;
+        }
+
+        return ($user->structure_id !== null && $user->structure_id === $this->structure_emettrice_id)
+            || static::transmisA($user)->whereKey($this->id)->exists();
+    }
+
+    /**
+     * Archives visibles par l'utilisateur : celles qu'il a émises, celles de sa propre structure (tout le monde) et
+     * celles partagées avec lui nommément ; le chef voit en plus celles partagées avec sa structure.
+     */
+    public function scopeArchivesPour($query, User $user)
+    {
+        return $query->where('statut', 'archive')->where(function ($q) use ($user) {
+            $q->where('cree_par', $user->id);
+
+            if ($user->structure_id) {
+                $q->orWhere('structure_emettrice_id', $user->structure_id);
+            }
+            // Partagé nommément avec cet utilisateur : il le voit, quel que soit son rôle.
+            $q->orWhereHas('transmissions.destinataires', fn ($t) => $t->where('user_id', $user->id));
+
+            // Partagé avec sa structure : seul le chef le voit, pas les collaborateurs.
+            if ($user->peutViser() && $user->structure_id) {
+                $q->orWhereHas('transmissions.destinataires', fn ($t) => $t->where('structure_id', $user->structure_id));
+            }
+        });
     }
 }

@@ -1,4 +1,4 @@
-@extends('layouts.entreprise')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Corriger le document')
 
@@ -41,7 +41,7 @@
 
 <div class="page-header">
     <h2><i class="fas fa-edit"></i> Corriger le document</h2>
-    <a href="{{ route('entreprise.dossiers.show', $dossier->id) }}" class="btn-back">
+    <a href="{{ eroute('entreprise.dossiers.show', $dossier->id) }}" class="btn-back">
         <i class="fas fa-arrow-left"></i> Retour au dossier
     </a>
 </div>
@@ -172,7 +172,7 @@
 <div class="card">
     <h3><i class="fas fa-upload"></i> Envoyer la version corrigée</h3>
 
-    <form action="{{ route('entreprise.dossiers.corriger.store', $dossier->id) }}" method="POST" enctype="multipart/form-data">
+    <form action="{{ eroute('entreprise.dossiers.corriger.store', $dossier->id) }}" method="POST" enctype="multipart/form-data">
         @csrf
 
         <div class="form-group">

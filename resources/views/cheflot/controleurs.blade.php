@@ -64,7 +64,6 @@
     </div>
 </div>
 @endif
-
 <div class="charts-grid">
     <div class="chart-card">
         <h4><i class="fas fa-chart-bar"></i> Documents traités par collaborateur</h4>

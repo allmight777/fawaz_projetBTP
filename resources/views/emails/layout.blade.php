@@ -161,12 +161,6 @@
             letter-spacing: 0.4px;
         }
 
-        .comment-title::before {
-            content: "💬";
-            margin-right: 8px;
-            font-size: 14px;
-        }
-
         .comment-text {
             color: #374151;
             font-size: 14px;

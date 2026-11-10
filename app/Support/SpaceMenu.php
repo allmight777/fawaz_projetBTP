@@ -47,10 +47,35 @@ class SpaceMenu
         // Une entrée dont la route n'existe pas (encore) n'est tout simplement pas affichée.
         $entrees = array_values(array_filter(self::entrees($espace, $user), fn (array $i) => Route::has($i[1])));
 
+        // Envoi de documents (comme l'entreprise) : « Mes documents », et « À transférer » pour le chef.
+        $typeVisa = $user->structureVisa();
+        if ($typeVisa && $espace !== 'admin') {
+            $envoi = Espaces::STRUCTURES[$typeVisa]['envoi'];
+            $ajout = [
+                ['Mes documents', $envoi . 'documents', [$envoi . 'documents']],
+                ['Dossiers', $envoi . 'dossiers', [$envoi . 'dossiers', $envoi . 'dossiers.*']],
+            ];
+            if ($user->peutViser()) {
+                $ajout[] = ['À transférer', $envoi . 'documents.a-transferer', [$envoi . 'documents.a-transferer']];
+            }
+            array_splice($entrees, 2, 0, array_values(array_filter($ajout, fn (array $i) => Route::has($i[1]))));
+        }
+
         // Mes collaborateurs : lien des chefs de structure, dans chaque espace sauf l'admin.
         if ($user->peutViser() && $espace !== 'admin' && Route::has('collaborateurs.index')) {
             $position = $espace === 'cheflot' ? 2 : max(0, count($entrees) - 1);
             array_splice($entrees, $position, 0, [['Mes collaborateurs', 'collaborateurs.index', ['collaborateurs.*']]]);
+        }
+
+        // Archives : une seule page pour tous les espaces (chacun y retrouve ce qu'il a le droit de voir).
+        if ($espace !== 'admin' && Route::has('archives.index')) {
+            $entrees = array_values(array_filter($entrees, fn (array $i) => !str_contains($i[1], 'archives')));
+            array_splice($entrees, max(0, count($entrees) - 1), 0, [['Archives', 'archives.index', ['archives.*']]]);
+        }
+
+        // Documents applicables : la référence du chantier, visible par toutes les structures.
+        if ($espace !== 'admin' && Route::has('documents.applicables')) {
+            array_splice($entrees, max(0, count($entrees) - 1), 0, [['Documents applicables', 'documents.applicables', ['documents.applicables']]]);
         }
 
         // Canevas (types de documents et listes de contrôle, en consultation) : chaque espace sauf l'admin,
@@ -105,16 +130,25 @@ class SpaceMenu
             'controleur' => [
                 ['Tableau de bord', 'controleur.dashboard', ['controleur.dashboard']],
                 ['Mes affectations', 'controleur.affectations.index', ['controleur.affectations*']],
-                ['Tous les dossiers', 'dossiers.index', ['dossiers.*']],
                 $events,
             ],
             'bureau_etudes_chef', 'maitre_oeuvre_chef' => self::entreesChefVisa($espace === 'bureau_etudes_chef' ? 'bureau_etudes.chef.' : 'maitre_oeuvre.chef.', $events),
             'bureau_etudes_collab', 'maitre_oeuvre_collab' => self::entreesCollaborateurVisa($espace === 'bureau_etudes_collab' ? 'bureau_etudes.collaborateur.' : 'maitre_oeuvre.collaborateur.', $events),
-            'maitre-ouvrage' => [
-                ['Documents de mon lot', $chef ? 'maitre_ouvrage.chef.dashboard' : 'maitre_ouvrage.collaborateur.dashboard', ['maitre_ouvrage.chef.dashboard', 'maitre_ouvrage.collaborateur.dashboard']],
-                ['Archives', 'maitre_ouvrage.archives', ['maitre_ouvrage.archives']],
-                $events,
-            ],
+            // Le Maître d'Ouvrage est le 4ᵉ niveau de visa : même navigation que les autres structures visantes.
+            'maitre-ouvrage' => $chef
+                ? [
+                    ['Tableau de bord', 'maitre_ouvrage.chef.dashboard', ['maitre_ouvrage.chef.dashboard']],
+                    ['Documents reçus', 'maitre_ouvrage.chef.documents.recus', ['maitre_ouvrage.chef.documents.recus*']],
+                    ['Statistiques', 'maitre_ouvrage.chef.statistiques', ['maitre_ouvrage.chef.statistiques*']],
+                    ['Archives', 'maitre_ouvrage.archives', ['maitre_ouvrage.archives', 'maitre_ouvrage.chef.archives.*']],
+                    $events,
+                ]
+                : [
+                    ['Tableau de bord', 'maitre_ouvrage.collaborateur.dashboard', ['maitre_ouvrage.collaborateur.dashboard']],
+                    ['Mes affectations', 'maitre_ouvrage.collaborateur.affectations.index', ['maitre_ouvrage.collaborateur.affectations*']],
+                        ['Archives', 'maitre_ouvrage.archives', ['maitre_ouvrage.archives']],
+                    $events,
+                ],
             'admin' => [
                 ['Tableau de bord', 'admin.dashboard', ['admin.dashboard']],
                 ['Utilisateurs', 'admin.users', ['admin.users*']],
@@ -144,7 +178,6 @@ class SpaceMenu
         return [
             ['Tableau de bord', $p . 'dashboard', [$p . 'dashboard']],
             ['Mes affectations', $p . 'affectations.index', [$p . 'affectations*']],
-            ['Tous les dossiers', 'dossiers.index', ['dossiers.*']],
             $events,
         ];
     }

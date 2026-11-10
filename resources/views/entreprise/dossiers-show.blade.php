@@ -1,4 +1,4 @@
-@extends('layouts.entreprise')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Détail du dossier')
 
@@ -144,11 +144,15 @@
 <div class="page-header">
     <h2><i class="fas fa-folder-open"></i> Détail du dossier</h2>
     <div>
-        <a href="{{ route('entreprise.dossiers') }}" class="btn-back">
+        <a href="{{ eroute('entreprise.dossiers') }}" class="btn-back">
             <i class="fas fa-arrow-left"></i> Retour
         </a>
+        @include('partials.partager-circuit', ['libelle' => true])
+        @if($dossier->retransmissiblePar(auth()->user()))
+            <a href="{{ route('dossiers.retransmettre.form', $dossier) }}" class="btn-back"><i class="fas fa-paper-plane"></i> Transmettre</a>
+        @endif
         @if($dossier->statut === 'a_corriger')
-        <a href="{{ route('entreprise.dossiers.corriger', $dossier->id) }}" class="btn-warning">
+        <a href="{{ eroute('entreprise.dossiers.corriger', $dossier->id) }}" class="btn-warning">
             <i class="fas fa-edit"></i> Voir et modifier
         </a>
         @endif
@@ -195,7 +199,9 @@
     </div>
 </div>
 
+@include('partials.applicable')
 @include('partials.circuit-visas')
+@include('partials.circuit-historique')
 
 <!-- Versions du dossier -->
 <div class="versions-container">
@@ -256,12 +262,12 @@
                     <td style="text-align:center;">
                         <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap;">
                             @if($version->fichier_chemin || $version->fichier_url)
-                            <a href="{{ route('entreprise.dossiers.versions.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn-link" title="Télécharger">
+                            <a href="{{ eroute('entreprise.dossiers.versions.telecharger', ['dossier' => $dossier->id, 'version' => $version->id]) }}" class="btn-link" title="Télécharger">
                                 <i class="fas fa-download"></i> Télécharger
                             </a>
                             @endif
                             @if($loop->first && $dossier->statut === 'a_corriger')
-                            <a href="{{ route('entreprise.dossiers.corriger', $dossier->id) }}" class="btn-link-warning" title="Modifier">
+                            <a href="{{ eroute('entreprise.dossiers.corriger', $dossier->id) }}" class="btn-link-warning" title="Modifier">
                                 <i class="fas fa-edit"></i> Corriger
                             </a>
                             @endif

@@ -71,19 +71,34 @@ class ArchivageTest extends TestCase
         ]);
     }
 
-    public function test_seul_le_chef_du_bureau_de_controle_peut_archiver(): void
+    public function test_l_emetteur_archive_son_document_et_un_simple_collegue_non(): void
     {
         $entreprise = Structure::create(['nom' => 'Ent', 'type' => 'entreprise']);
         $chefEntreprise = $this->utilisateur(User::ROLE_ENTREPRISE_CHEF, 'responsable_organisme', $entreprise);
-        $chefLot = $this->utilisateur(User::ROLE_CHEF_LOT, 'responsable_organisme');
+        $collegue = $this->utilisateur(User::ROLE_ENTREPRISE_COLLABORATEUR, 'collaborateur', $entreprise);
+        $autreStructure = Structure::create(['nom' => 'BE', 'type' => 'bureau_etudes']);
+        $chefAutre = $this->utilisateur(User::ROLE_BUREAU_ETUDES_CHEF, 'responsable_organisme', $autreStructure);
+
         $dossier = $this->dossier($chefEntreprise, 'valide');
 
-        // L'émetteur (même chef d'entreprise) ne peut pas archiver son propre document.
-        $this->actingAs($chefEntreprise)->post(route('dossiers.archiver', $dossier))->assertForbidden();
+        // Ni un collègue qui n'est pas l'émetteur, ni le chef d'une structure à qui le document n'a pas été transmis.
+        $this->actingAs($collegue)->post(route('dossiers.archiver', $dossier))->assertForbidden();
+        $this->actingAs($chefAutre)->post(route('dossiers.archiver', $dossier))->assertForbidden();
         $this->assertSame('valide', $dossier->fresh()->statut);
 
-        $this->actingAs($chefLot)->post(route('dossiers.archiver', $dossier))->assertRedirect();
+        // L'émetteur archive, quel que soit son rôle : le document quitte « Mes documents ».
+        $this->actingAs($chefEntreprise)->post(route('dossiers.archiver', $dossier))->assertRedirect(route('archives.index'));
         $this->assertSame('archive', $dossier->fresh()->statut);
+    }
+
+    public function test_un_document_en_cours_de_visa_ne_s_archive_pas(): void
+    {
+        $entreprise = Structure::create(['nom' => 'Ent', 'type' => 'entreprise']);
+        $chef = $this->utilisateur(User::ROLE_ENTREPRISE_CHEF, 'responsable_organisme', $entreprise);
+        $dossier = $this->dossier($chef, 'en_cours');
+
+        $this->actingAs($chef)->post(route('dossiers.archiver', $dossier))->assertRedirect();
+        $this->assertSame('en_cours', $dossier->fresh()->statut);
     }
 
     public function test_un_dossier_archive_ne_peut_etre_ni_modifie_ni_supprime_ni_desarchive(): void
@@ -113,48 +128,56 @@ class ArchivageTest extends TestCase
         }
     }
 
-    public function test_archives_reservees_aux_chefs_des_autres_structures(): void
+    public function test_chacun_voit_ses_archives_les_collaborateurs_seulement_celles_de_leur_structure(): void
+    {
+        $ent = Structure::create(['nom' => 'Entreprise Alpha', 'type' => 'entreprise']);
+        $be = Structure::create(['nom' => 'BE Beta', 'type' => 'bureau_etudes']);
+        $chefEnt = $this->utilisateur(User::ROLE_ENTREPRISE_CHEF, 'responsable_organisme', $ent);
+        $collabEnt = $this->utilisateur(User::ROLE_ENTREPRISE_COLLABORATEUR, 'collaborateur', $ent);
+        $chefBe = $this->utilisateur(User::ROLE_BUREAU_ETUDES_CHEF, 'responsable_organisme', $be);
+        $collabBe = $this->utilisateur(User::ROLE_BUREAU_ETUDES_COLLABORATEUR, 'collaborateur', $be);
+
+        $archive = $this->dossier($chefEnt, 'archive');
+
+        // Archive de l'entreprise : visible par toute l'entreprise, pas par le BE tant qu'elle ne lui est pas partagée.
+        $this->actingAs($chefEnt)->get(route('archives.index'))->assertOk()->assertSee($archive->identifiant);
+        $this->actingAs($collabEnt)->get(route('archives.index'))->assertOk()->assertSee($archive->identifiant);
+        $this->actingAs($chefBe)->get(route('archives.index'))->assertOk()->assertDontSee($archive->identifiant);
+
+        // L'entreprise a transmis le document au BE : son chef le retrouve dans ses archives, pas son collaborateur.
+        $transmission = \App\Models\DocumentTransmission::create([
+            'dossier_id' => $archive->id, 'emetteur_id' => $chefEnt->id, 'mode' => 'simple', 'date_transmission' => now(),
+        ]);
+        \App\Models\TransmissionDestinataire::create(['document_transmission_id' => $transmission->id, 'structure_id' => $be->id]);
+
+        $this->actingAs($chefBe)->get(route('archives.index'))->assertOk()->assertSee($archive->identifiant);
+        $this->actingAs($collabBe)->get(route('archives.index'))->assertOk()->assertDontSee($archive->identifiant);
+    }
+
+    public function test_le_lien_archives_est_dans_le_menu_de_tous_les_espaces(): void
     {
         foreach ([
-            ['entreprise', User::ROLE_ENTREPRISE_CHEF, User::ROLE_ENTREPRISE_COLLABORATEUR, 'entreprise.archives'],
-            ['maitre_ouvrage', User::ROLE_MAITRE_OUVRAGE_CHEF, User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'maitre_ouvrage.archives'],
-            ['bureau_etudes', User::ROLE_BUREAU_ETUDES_CHEF, User::ROLE_BUREAU_ETUDES_COLLABORATEUR, 'bureau_etudes.chef.archives.index'],
-        ] as [$type, $roleChef, $roleCollab, $route]) {
+            ['entreprise', User::ROLE_ENTREPRISE_CHEF, User::ROLE_ENTREPRISE_COLLABORATEUR, 'entreprise.chef.dashboard', 'entreprise.collaborateur.dashboard'],
+            ['maitre_ouvrage', User::ROLE_MAITRE_OUVRAGE_CHEF, User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'maitre_ouvrage.chef.dashboard', 'maitre_ouvrage.collaborateur.dashboard'],
+        ] as [$type, $roleChef, $roleCollab, $dashChef, $dashCollab]) {
             $structure = Structure::create(['nom' => $type, 'type' => $type]);
             $chef = $this->utilisateur($roleChef, 'responsable_organisme', $structure);
             $collab = $this->utilisateur($roleCollab, 'collaborateur', $structure);
-            $this->dossier($chef, 'archive');
 
-            $this->actingAs($chef)->get(route($route))->assertOk()->assertSee('archives');
-            // Le collaborateur est refusé : 403, ou renvoyé vers son propre espace par la garde d'espace.
-            $this->assertContains($this->actingAs($collab)->get(route($route))->status(), [302, 403]);
+            $this->actingAs($chef)->get(route($dashChef))->assertOk()->assertSee(route('archives.index'));
+            $this->actingAs($collab)->get(route($dashCollab))->assertOk()->assertSee(route('archives.index'));
         }
     }
 
-    public function test_le_lien_archives_n_apparait_que_dans_le_menu_des_chefs(): void
-    {
-        foreach ([
-            ['entreprise', User::ROLE_ENTREPRISE_CHEF, User::ROLE_ENTREPRISE_COLLABORATEUR, 'entreprise.chef.dashboard', 'entreprise.collaborateur.dashboard', 'entreprise.archives'],
-            ['maitre_ouvrage', User::ROLE_MAITRE_OUVRAGE_CHEF, User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'maitre_ouvrage.chef.dashboard', 'maitre_ouvrage.collaborateur.dashboard', 'maitre_ouvrage.archives'],
-        ] as [$type, $roleChef, $roleCollab, $dashChef, $dashCollab, $route]) {
-            $structure = Structure::create(['nom' => $type, 'type' => $type]);
-            $chef = $this->utilisateur($roleChef, 'responsable_organisme', $structure);
-            $collab = $this->utilisateur($roleCollab, 'collaborateur', $structure);
-
-            $this->actingAs($chef)->get(route($dashChef))->assertOk()->assertSee(route($route));
-            $this->actingAs($collab)->get(route($dashCollab))->assertOk()->assertDontSee(route($route));
-        }
-    }
-
-    public function test_la_case_archiver_de_la_diffusion_respecte_la_meme_regle(): void
+    public function test_la_diffusion_reste_reservee_a_l_espace_de_controle(): void
     {
         $entreprise = Structure::create(['nom' => 'Ent', 'type' => 'entreprise']);
         $chefEntreprise = $this->utilisateur(User::ROLE_ENTREPRISE_CHEF, 'responsable_organisme', $entreprise);
         $dossier = $this->dossier($chefEntreprise, 'valide');
 
         $this->actingAs($chefEntreprise)
-            ->post(route('cheflot.dossiers.diffusion.store', $dossier), ['archiver' => '1', 'structures' => [$entreprise->id]])
-            ->assertForbidden();
+            ->post(route('cheflot.dossiers.diffusion.store', $dossier), ['archiver' => '1', 'structures' => [$entreprise->id]]);
+        // La diffusion appartient à l'espace du Bureau de Contrôle : refusée à l'entreprise, rien n'est archivé.
         $this->assertSame('valide', $dossier->fresh()->statut);
     }
 }

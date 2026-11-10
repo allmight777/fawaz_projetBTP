@@ -61,7 +61,7 @@
             @if($estCreateur)
                 <div class="ev-actions">
                     <a href="{{ route('events.edit', $event) }}" class="btn-outline"><i class="fas fa-pen"></i> Modifier</a>
-                    <form method="POST" action="{{ route('events.destroy', $event) }}" onsubmit="return confirm('Supprimer définitivement cet événement ?');">
+                    <form method="POST" action="{{ route('events.destroy', $event) }}" data-confirm="« {{ $event->titre }} » sera supprimé pour tous les participants." data-confirm-title="Supprimer cet événement ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                         @csrf @method('DELETE')
                         <button type="submit" class="btn-danger"><i class="fas fa-trash"></i> Supprimer</button>
                     </form>

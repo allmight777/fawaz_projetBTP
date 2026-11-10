@@ -5,7 +5,6 @@
 @section('content')
 <div class="page-header">
     <h1>Dossiers</h1>
-    <a href="{{ route('dossiers.create') }}" class="btn-submit" style="width:auto; display:inline-block;">Importer un document</a>
 </div>
 
 <form method="GET" class="filters">

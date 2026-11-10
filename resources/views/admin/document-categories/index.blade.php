@@ -34,7 +34,7 @@
                     <span class="badge badge-controle">{{ $n }} type{{ $n > 1 ? 's' : '' }}</span>
                     <button type="submit" class="btn">Enregistrer</button>
                 </form>
-                <form method="POST" action="{{ route('admin.document-categories.destroy', $categorie) }}" onsubmit="return confirm('Supprimer la catégorie « {{ $categorie->nom }} » ?')">
+                <form method="POST" action="{{ route('admin.document-categories.destroy', $categorie) }}" data-confirm="La catégorie « {{ $categorie->nom }} » sera supprimée." data-confirm-title="Supprimer cette catégorie ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                     @csrf @method('DELETE')
                     <button type="submit" class="btn-danger" @if($n > 0) disabled title="Catégorie non vide" @endif>Supprimer</button>
                 </form>

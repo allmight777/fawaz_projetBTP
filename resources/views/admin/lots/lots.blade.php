@@ -73,7 +73,7 @@
                         <a href="{{ route('admin.lots.edit', $lot) }}" class="btn-warning btn-sm">
                             <i class="fas fa-edit"></i> Modifier
                         </a>
-                        <form action="{{ route('admin.lots.destroy', $lot) }}" method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce lot ?')">
+                        <form action="{{ route('admin.lots.destroy', $lot) }}" method="POST" style="display:inline" data-confirm="Le lot « {{ $lot->nom }} » sera supprimé." data-confirm-title="Supprimer ce lot ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                             @csrf
                             @method('DELETE')
                             <button type="submit" class="btn-danger btn-sm">

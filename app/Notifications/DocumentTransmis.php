@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\DocumentTransmission;
 use Illuminate\Bus\Queueable;
+use App\Support\MailGabarit;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -24,10 +25,15 @@ class DocumentTransmis extends Notification
     {
         $dossier = $this->transmission->dossier;
 
-        return (new MailMessage)
-            ->subject('Document transmis — ' . $dossier->identifiant_affiche)
-            ->greeting('Bonjour ' . $notifiable->full_name . ',')
-            ->line('Le document "' . $dossier->titre . '" (' . $dossier->identifiant_affiche . ') vous a été transmis par ' . $this->transmission->emetteur->full_name . '.')
-            ->action('Voir le dossier', route('dossiers.show', $dossier));
+        return MailGabarit::message('Document transmis - ' . $dossier->identifiant_affiche, [
+            'titre' => 'Document transmis',
+            'sous_titre' => 'Un document a été partagé avec vous',
+            'intro' => ['Bonjour <strong>' . MailGabarit::e($notifiable->full_name) . '</strong>, <strong>' . MailGabarit::e($this->transmission->emetteur?->full_name) . '</strong> vous a transmis le document ci-dessous. Vous pouvez le consulter et, à votre tour, le transmettre.'],
+            'lignes' => MailGabarit::infosDossier($dossier),
+            'note_titre' => 'Message de l\'émetteur',
+            'note' => $this->transmission->commentaire,
+            'action' => 'Consulter le document',
+            'url' => route('dossiers.show', $dossier),
+        ]);
     }
 }

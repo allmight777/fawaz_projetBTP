@@ -131,7 +131,7 @@ class CircuitVisaTest extends TestCase
         }
     }
 
-    public function test_le_document_n_est_valide_que_lorsque_toutes_les_structures_ont_vise(): void
+    public function test_le_document_est_valide_des_le_premier_visa_et_les_autres_peuvent_encore_viser(): void
     {
         [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes', 'maitre_oeuvre']);
 
@@ -147,7 +147,8 @@ class CircuitVisaTest extends TestCase
                 ->post(route($routes[$type], $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chef))
                 ->assertSessionHasNoErrors()->assertRedirect();
 
-            $this->assertNotSame('valide', $dossier->fresh()->statut, "Validé trop tôt après le visa $type");
+            // Validé dès le premier visa ; seules les structures qui ont visé apparaissent « Visé ».
+            $this->assertSame('valide', $dossier->fresh()->statut, "Pas validé après le visa $type");
             $this->assertSame('valide', CircuitVisa::where('document_version_id', $version->id)->where('structure_type', $type)->value('statut'));
         }
 
@@ -438,5 +439,419 @@ class CircuitVisaTest extends TestCase
         $chef = $this->chefs['bureau_controle'];
         $this->actingAs($chef)->get(route('rfi.index'))->assertOk()->assertSee('Aucune demande');
         $this->actingAs($chef)->get(route('rfi.create'))->assertOk()->assertSee('Comment ça marche');
+    }
+
+    public function test_modifier_la_decision_remet_le_document_a_corriger_et_journalise(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes']);
+        $chefBc = $this->chefs['bureau_controle'];
+
+        $this->actingAs($chefBc)
+            ->post(route('cheflot.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBc))
+            ->assertSessionHasNoErrors();
+        $this->assertSame('valide', $dossier->fresh()->statut);
+
+        // Un autre chef (BE), qui n'a pas visé, ne peut pas modifier la décision du BC.
+        $this->actingAs($this->chefs['bureau_etudes'])
+            ->post(route('dossiers.decision.modifier', $version), ['motif' => 'Je ne devrais pas pouvoir'])
+            ->assertForbidden();
+
+        // Le motif est obligatoire.
+        $this->actingAs($chefBc)->post(route('dossiers.decision.modifier', $version), ['motif' => ''])->assertSessionHasErrors('motif');
+
+        $this->actingAs($chefBc)
+            ->post(route('dossiers.decision.modifier', $version), ['motif' => 'Plan de ferraillage à revoir'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('a_corriger', $dossier->fresh()->statut);
+        $this->assertSame('a_corriger', $version->fresh()->statut);
+        $this->assertSame('a_corriger', CircuitVisa::where('document_version_id', $version->id)->where('structure_type', 'bureau_controle')->value('statut'));
+
+        $actions = $dossier->evenements()->where('structure_type', 'bureau_controle')->pluck('action')->all();
+        $this->assertSame(['envoi', 'visa', 'decision_modifiee'], $actions);
+        $this->assertSame('Plan de ferraillage à revoir', $dossier->evenements()->where('action', 'decision_modifiee')->value('motif'));
+
+        // La page du dossier montre l'historique, chez l'émetteur comme chez la structure.
+        foreach ([$this->chefs['entreprise'], $chefBc] as $acteur) {
+            $this->actingAs($acteur)->get(route('dossiers.show', $dossier))->assertOk()
+                ->assertSee('Historique du circuit')->assertSee('Décision modifiée')->assertSee('Plan de ferraillage à revoir');
+        }
+        // Le bouton n'est plus proposé une fois la décision modifiée.
+        $this->actingAs($chefBc)->get(route('cheflot.documents.recus.show', $dossier->id))->assertOk()->assertDontSee('Modifier la décision');
+    }
+
+    public function test_le_bouton_modifier_la_decision_est_propose_au_chef_qui_a_vise(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle']);
+        $chefBc = $this->chefs['bureau_controle'];
+
+        $this->actingAs($chefBc)->get(route('cheflot.documents.recus.show', $dossier->id))->assertOk()->assertDontSee('Modifier la décision');
+
+        $this->actingAs($chefBc)
+            ->post(route('cheflot.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBc));
+
+        $this->actingAs($chefBc)->get(route('cheflot.documents.recus.show', $dossier->id))->assertOk()
+            ->assertSee('Modifier la décision')->assertSee('Retour à la liste');
+    }
+
+    public function test_rendre_applicable_reserve_au_chef_entreprise_une_fois_tous_les_visas_obtenus(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes']);
+        $chefEntreprise = $this->chefs['entreprise'];
+
+        $viser = function (string $type, string $route) use ($dossier) {
+            $chef = $this->chefs[$type];
+            $this->actingAs($chef)->post(route($route, $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chef))->assertSessionHasNoErrors();
+        };
+
+        $viser('bureau_controle', 'cheflot.documents.recus.decision');
+        // Un seul visa sur deux : pas encore applicable.
+        $this->actingAs($chefEntreprise)->post(route('dossiers.applicable', $dossier))->assertForbidden();
+
+        $viser('bureau_etudes', 'bureau_etudes.chef.documents.recus.decision');
+
+        // Ni un collaborateur, ni une autre structure ne peuvent le faire.
+        $this->actingAs($this->collabs['entreprise'])->post(route('dossiers.applicable', $dossier))->assertForbidden();
+        $this->actingAs($this->chefs['bureau_controle'])->post(route('dossiers.applicable', $dossier))->assertForbidden();
+
+        $this->actingAs($chefEntreprise)->post(route('dossiers.applicable', $dossier))->assertSessionHasNoErrors();
+        $this->assertTrue($dossier->fresh()->estApplicable());
+        $this->assertSame('Applicable', $dossier->fresh()->statut_label);
+
+        // La liste « Documents applicables » est visible de toutes les structures.
+        foreach (['bureau_controle', 'bureau_etudes', 'maitre_oeuvre', 'entreprise'] as $type) {
+            $this->actingAs($this->chefs[$type])->get(route('documents.applicables'))->assertOk()->assertSee($dossier->identifiant);
+            $this->actingAs($this->collabs[$type])->get(route('documents.applicables'))->assertOk()->assertSee($dossier->identifiant);
+        }
+        // … et le lien est dans leur menu.
+        $this->actingAs($this->collabs['maitre_oeuvre'])->get(route('maitre_oeuvre.collaborateur.dashboard'))->assertSee('Documents applicables');
+
+        // Une structure revient sur son visa : le statut applicable disparaît.
+        $this->actingAs($this->chefs['bureau_etudes'])
+            ->post(route('dossiers.decision.modifier', $version), ['motif' => 'Erreur de calcul trouvée'])
+            ->assertSessionHasNoErrors();
+        $this->assertFalse($dossier->fresh()->estApplicable());
+        $this->assertNull($dossier->fresh()->applicable_le);
+        $this->actingAs($this->chefs['bureau_controle'])->get(route('documents.applicables'))->assertOk()->assertDontSee($dossier->identifiant);
+    }
+
+    public function test_le_cachet_de_chaque_structure_est_pose_a_son_emplacement_sur_le_pdf(): void
+    {
+        $this->structures['maitre_ouvrage'] = Structure::create(['nom' => 'MO', 'type' => 'maitre_ouvrage']);
+        $this->chefs['maitre_ouvrage'] = $this->utilisateur(User::ROLE_MAITRE_OUVRAGE_CHEF, 'responsable_organisme', $this->structures['maitre_ouvrage']);
+
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes', 'maitre_oeuvre', 'maitre_ouvrage']);
+
+        $pdf = new \setasign\Fpdi\Fpdi();
+        $pdf->AddPage();
+        $pdf->SetFont('Helvetica', '', 14);
+        $pdf->Cell(0, 10, 'Document de test');
+        Storage::disk('public')->put('documents/plan.pdf', $pdf->Output('S'));
+
+        foreach (['bureau_controle', 'bureau_etudes', 'maitre_oeuvre', 'maitre_ouvrage'] as $type) {
+            $chef = $this->chefs[$type];
+            $this->actingAs($chef);
+            app(\App\Services\VisaService::class)->enregistrer(
+                \Illuminate\Http\Request::create('/', 'POST', $this->pieceVisa($chef)), $chef, $version, 'validation', null, false
+            );
+        }
+
+        $this->assertTrue(app(\App\Services\DocumentStampingService::class)->tamponner($version->fresh()));
+        $chemin = $version->fresh()->fichier_valide_chemin;
+        $this->assertNotEmpty($chemin);
+        $contenu = Storage::disk('public')->get($chemin);
+        $this->assertStringStartsWith('%PDF', $contenu);
+
+        if ($sortie = getenv('STAMP_OUT')) {
+            file_put_contents($sortie, $contenu);
+        }
+    }
+
+    public function test_les_structures_visantes_envoient_leurs_documents_comme_l_entreprise(): void
+    {
+        $this->structures['maitre_ouvrage'] = Structure::create(['nom' => 'MO', 'type' => 'maitre_ouvrage']);
+        $this->chefs['maitre_ouvrage'] = $this->utilisateur(User::ROLE_MAITRE_OUVRAGE_CHEF, 'responsable_organisme', $this->structures['maitre_ouvrage']);
+        $this->collabs['maitre_ouvrage'] = $this->utilisateur(User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'collaborateur', $this->structures['maitre_ouvrage']);
+
+        $type = DocumentType::create(['code' => 'NCA', 'nom' => 'Note', 'categorie' => 'etude_execution', 'mode_traitement' => 'validation', 'actif' => true]);
+
+        $envois = [
+            'bureau_controle' => ['bureau_controle.envoi.', 'cheflot.dashboard'],
+            'bureau_etudes' => ['bureau_etudes.envoi.', 'bureau_etudes.chef.dashboard'],
+            'maitre_oeuvre' => ['maitre_oeuvre.envoi.', 'maitre_oeuvre.chef.dashboard'],
+            'maitre_ouvrage' => ['maitre_ouvrage.envoi.', 'maitre_ouvrage.chef.dashboard'],
+        ];
+
+        foreach ($envois as $structure => [$prefixe, $dashboard]) {
+            $chef = $this->chefs[$structure];
+            $autres = array_values(array_diff(array_keys($envois), [$structure]));
+
+            // La page « Mes documents » s'affiche dans l'espace de la structure ; elle ne propose pas son propre visa.
+            $page = $this->actingAs($chef)->get(route($prefixe . 'documents'));
+            $page->assertOk();
+            $this->actingAs($chef)->get(route($dashboard))->assertOk()->assertSee('Mes documents');
+
+            $donnees = [
+                'fichiers' => [UploadedFile::fake()->create('note.pdf', 100, 'application/pdf')],
+                'document_type_id' => [$type->id], 'titre' => ['Note ' . $structure], 'mode' => ['validation'],
+                'circuit' => [[$autres[0], $autres[1]]],
+            ] + $this->pieceVisa($chef);
+
+            $this->actingAs($chef)->post(route($prefixe . 'transmettre'), $donnees)->assertSessionHasNoErrors();
+
+            $dossier = Dossier::where('titre', 'Note ' . $structure)->firstOrFail();
+            $this->assertSame($this->structures[$structure]->id, $dossier->structure_emettrice_id);
+            $this->assertEqualsCanonicalizing([$autres[0], $autres[1]], $dossier->circuitVisas->pluck('structure_type')->all());
+
+            // Un chef d'une autre structure reçoit le document dans ses « Documents reçus ».
+            $this->actingAs($this->chefs[$autres[0]])->get(route(\App\Support\Espaces::nomRoute('cheflot.documents.recus', $this->chefs[$autres[0]])))
+                ->assertOk()->assertSee($dossier->identifiant);
+        }
+
+        // Le collaborateur d'un BE soumet à son chef, qui le retrouve dans « À transférer ».
+        $this->actingAs($this->collabs['bureau_etudes'])->post(route('bureau_etudes.envoi.transmettre'), [
+            'fichiers' => [UploadedFile::fake()->create('n.pdf', 50, 'application/pdf')],
+            'document_type_id' => [$type->id], 'titre' => ['Note collab'], 'mode' => ['validation'], 'circuit' => [['maitre_oeuvre']],
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($this->chefs['bureau_etudes'])->get(route('bureau_etudes.envoi.documents.a-transferer'))->assertOk()->assertSee('Note collab');
+
+        // Une autre espace ne peut pas utiliser ces routes.
+        $this->actingAs($this->chefs['entreprise'])->get(route('bureau_etudes.envoi.documents'))->assertRedirect();
+    }
+
+    public function test_l_emetteur_ajoute_une_structure_oubliee_sans_casser_le_circuit_en_cours(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle']);
+        $chefEntreprise = $this->chefs['entreprise'];
+        $chefBc = $this->chefs['bureau_controle'];
+
+        // Le BC vise : le document est validé, le circuit n'attend plus rien (applicable possible).
+        $this->actingAs($chefBc)->post(route('cheflot.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBc))->assertSessionHasNoErrors();
+        $this->actingAs($chefEntreprise)->post(route('dossiers.applicable', $dossier))->assertSessionHasNoErrors();
+        $this->assertTrue($dossier->fresh()->estApplicable());
+
+        // L'icône « Partager » est proposée à l'émetteur, pas à une autre structure ; le BC ne peut pas se choisir lui-même.
+        $this->actingAs($chefEntreprise)->get(route('entreprise.documents'))->assertOk()->assertSee('fa-user-plus');
+        $this->actingAs($chefBc)->post(route('dossiers.partager', $dossier), ['structures' => ['bureau_etudes']])->assertForbidden();
+        $this->actingAs($chefEntreprise)->post(route('dossiers.partager', $dossier), ['structures' => []])->assertSessionHasErrors('structures');
+
+        $this->actingAs($chefEntreprise)->post(route('dossiers.partager', $dossier), ['structures' => ['bureau_etudes', 'bureau_controle']])->assertSessionHasNoErrors();
+
+        // BE ajouté en attente ; BC (déjà dans le circuit) intact ; le document n'est plus applicable.
+        $statuts = CircuitVisa::where('document_version_id', $version->id)->pluck('statut', 'structure_type')->all();
+        $this->assertSame(['bureau_controle' => 'valide', 'bureau_etudes' => 'en_attente'], $statuts);
+        $this->assertFalse($dossier->fresh()->estApplicable());
+        $this->assertSame('valide', $dossier->fresh()->statut);
+        $this->assertSame('BC,BE', $dossier->fresh()->structure_cible);
+
+        // Le chef du BE reçoit le document, vise à son niveau ; tout est dans l'historique.
+        $chefBe = $this->chefs['bureau_etudes'];
+        $this->actingAs($chefBe)->get(route('bureau_etudes.chef.documents.recus'))->assertOk()->assertSee($dossier->identifiant);
+        $this->actingAs($chefBe)->post(route('bureau_etudes.chef.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBe))->assertSessionHasNoErrors();
+        $this->assertTrue($dossier->fresh()->visasComplets());
+        $this->actingAs($chefEntreprise)->get(route('dossiers.show', $dossier))->assertOk()->assertSee('Structure ajoutée au circuit');
+
+        // Plus rien à ajouter une fois que BC et BE y sont et qu'il reste MOE et MO : MOE reste proposable.
+        $this->actingAs($chefEntreprise)->post(route('dossiers.partager', $dossier), ['structures' => ['maitre_oeuvre']])->assertSessionHasNoErrors();
+        $this->assertSame(3, CircuitVisa::where('document_version_id', $version->id)->count());
+    }
+
+    public function test_un_destinataire_peut_retransmettre_le_document_a_son_tour(): void
+    {
+        [$dossier] = $this->dossierEnCircuit(['bureau_controle']);
+        $chefBc = $this->chefs['bureau_controle'];
+        $collabBe = $this->collabs['bureau_etudes'];
+
+        // Le collaborateur du BE n'a pas le document ; le chef du BC (destinataire) le lui transmet.
+        $this->actingAs($collabBe)->get(route('dossiers.retransmettre.form', $dossier))->assertForbidden();
+        $this->actingAs($collabBe)->get(route('dossiers.show', $dossier))->assertForbidden();
+
+        $this->actingAs($chefBc)->get(route('dossiers.retransmettre.form', $dossier))->assertOk();
+        $this->actingAs($chefBc)->post(route('dossiers.retransmettre', $dossier), [])->assertSessionHasErrors('destinataires');
+        $this->actingAs($chefBc)->post(route('dossiers.retransmettre', $dossier), ['users' => [$collabBe->id]])->assertSessionHasNoErrors();
+
+        $this->actingAs($collabBe)->get(route('dossiers.show', $dossier))->assertOk()->assertSee('Transmettre');
+
+        // … qui peut le transmettre à son tour, mais n'a aucun droit de visa dessus.
+        $this->actingAs($collabBe)->post(route('dossiers.retransmettre', $dossier), ['users' => [$this->collabs['maitre_oeuvre']->id]])->assertSessionHasNoErrors();
+        $this->actingAs($this->collabs['maitre_oeuvre'])->get(route('dossiers.show', $dossier))->assertOk();
+        $this->actingAs($collabBe)->post(route('bureau_etudes.chef.documents.recus.decision', $dossier->id), ['decision' => 'a_corriger'])->assertRedirect();
+        $this->assertSame('en_cours', $dossier->fresh()->statut);
+    }
+
+    public function test_le_maitre_d_ouvrage_est_le_quatrieme_niveau_du_circuit(): void
+    {
+        $this->structures['maitre_ouvrage'] = Structure::create(['nom' => 'MO', 'type' => 'maitre_ouvrage']);
+        $chefMo = $this->chefs['maitre_ouvrage'] = $this->utilisateur(User::ROLE_MAITRE_OUVRAGE_CHEF, 'responsable_organisme', $this->structures['maitre_ouvrage']);
+        $collabMo = $this->utilisateur(User::ROLE_MAITRE_OUVRAGE_COLLABORATEUR, 'collaborateur', $this->structures['maitre_ouvrage']);
+
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes', 'maitre_oeuvre', 'maitre_ouvrage']);
+        $this->assertSame(4, CircuitVisa::where('document_version_id', $version->id)->count());
+        $this->assertSame('BC,BE,MOE,MO', $dossier->structure_cible);
+
+        // Le MO reçoit le document, l'affecte à son collaborateur, qui analyse ; le chef vise.
+        $this->actingAs($chefMo)->get(route('maitre_ouvrage.chef.documents.recus'))->assertOk()->assertSee($dossier->identifiant);
+        $this->actingAs($chefMo)->get(route('maitre_ouvrage.chef.dashboard'))->assertOk()->assertSee('Documents reçus');
+        $this->actingAs($chefMo)->get(route('maitre_ouvrage.chef.dossiers.affecter', $version))->assertOk();
+        $this->actingAs($collabMo)->get(route('maitre_ouvrage.collaborateur.dashboard'))->assertOk()->assertSee('Mes affectations');
+        $this->actingAs($collabMo)->get(route('maitre_ouvrage.collaborateur.affectations.index'))->assertOk();
+
+        $this->actingAs($chefMo)
+            ->post(route('maitre_ouvrage.chef.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefMo))
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('valide', CircuitVisa::where('document_version_id', $version->id)->where('structure_type', 'maitre_ouvrage')->value('statut'));
+        $resume = collect($dossier->fresh()->load('circuitVisas')->visas_resume)->pluck('statut', 'sigle')->all();
+        $this->assertSame('valide', $resume['MO']);
+        $this->assertSame('en_attente', $resume['BC']);
+
+        // Le MO peut revenir sur son visa.
+        $this->actingAs($chefMo)->post(route('dossiers.decision.modifier', $version), ['motif' => 'Réserve du maître d\'ouvrage'])->assertSessionHasNoErrors();
+        $this->assertSame('a_corriger', $dossier->fresh()->statut);
+    }
+
+    public function test_un_document_valide_n_est_archivable_qu_une_fois_tous_les_visas_obtenus(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle', 'bureau_etudes']);
+        $chefEntreprise = $this->chefs['entreprise'];
+        $chefBc = $this->chefs['bureau_controle'];
+
+        $this->actingAs($chefBc)->post(route('cheflot.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBc))->assertSessionHasNoErrors();
+        $this->assertSame('valide', $dossier->fresh()->statut);
+
+        // Validé par le BC seulement : le BE n'a pas visé, donc ni bouton ni archivage possible.
+        $this->assertFalse($dossier->fresh()->archivable());
+        $this->actingAs($chefEntreprise)->get(route('entreprise.documents'))->assertOk()->assertDontSee('Archiver');
+        $this->actingAs($chefEntreprise)->post(route('dossiers.archiver', $dossier))->assertRedirect()->assertSessionHas('error');
+        $this->assertSame('valide', $dossier->fresh()->statut);
+
+        $chefBe = $this->chefs['bureau_etudes'];
+        $this->actingAs($chefBe)->post(route('bureau_etudes.chef.documents.recus.decision', $dossier->id), ['decision' => 'valide'] + $this->pieceVisa($chefBe))->assertSessionHasNoErrors();
+
+        $this->assertTrue($dossier->fresh()->archivable());
+        $this->actingAs($chefEntreprise)->post(route('dossiers.archiver', $dossier))->assertRedirect(route('archives.index'));
+        $this->assertSame('archive', $dossier->fresh()->statut);
+    }
+
+    public function test_partager_une_archive_la_rend_visible_aux_destinataires_et_prevenus_par_mail_au_gabarit_commun(): void
+    {
+        [$dossier] = $this->dossierEnCircuit(['bureau_controle']);
+        $dossier->update(['statut' => 'valide']);
+        $dossier->circuitVisas()->update(['statut' => 'valide']);
+        $chefEntreprise = $this->chefs['entreprise'];
+
+        $this->actingAs($chefEntreprise)->post(route('dossiers.archiver', $dossier))->assertRedirect(route('archives.index'));
+        $this->assertSame('archive', $dossier->fresh()->statut);
+
+        $collabBe = $this->collabs['bureau_etudes'];
+        $this->actingAs($collabBe)->get(route('archives.index'))->assertOk()->assertDontSee($dossier->identifiant);
+
+        // Bouton « Partager » sur la page des archives, puis partage nominatif avec un collaborateur et avec la structure MOE.
+        $this->actingAs($chefEntreprise)->get(route('archives.index'))->assertOk()->assertSee('Partager')->assertDontSee('classés par structure émettrice');
+        $this->actingAs($chefEntreprise)->post(route('dossiers.retransmettre', $dossier), [])->assertSessionHasErrors('destinataires');
+        $this->actingAs($chefEntreprise)->post(route('dossiers.retransmettre', $dossier), [
+            'users' => [$collabBe->id], 'structures' => [$this->structures['maitre_oeuvre']->id],
+        ])->assertSessionHasNoErrors();
+
+        // Nommément : visible même par un collaborateur. Par structure : le chef seulement.
+        $this->actingAs($collabBe)->get(route('archives.index'))->assertOk()->assertSee($dossier->identifiant);
+        $this->actingAs($this->chefs['maitre_oeuvre'])->get(route('archives.index'))->assertOk()->assertSee($dossier->identifiant);
+        $this->actingAs($this->collabs['maitre_oeuvre'])->get(route('archives.index'))->assertOk()->assertDontSee($dossier->identifiant);
+
+        // Le destinataire peut le partager à son tour.
+        $this->actingAs($collabBe)->post(route('dossiers.retransmettre', $dossier), ['users' => [$this->collabs['bureau_controle']->id]])->assertSessionHasNoErrors();
+        $this->actingAs($this->collabs['bureau_controle'])->get(route('archives.index'))->assertOk()->assertSee($dossier->identifiant);
+    }
+
+    public function test_les_mails_ont_le_meme_gabarit_et_aucun_emoji(): void
+    {
+        [$dossier, $version] = $this->dossierEnCircuit(['bureau_controle']);
+        $destinataire = $this->chefs['bureau_controle'];
+
+        foreach ([
+            new \App\Notifications\DocumentArchive($dossier),
+            new \App\Notifications\DocumentApplicable($dossier),
+            new \App\Notifications\DocumentValide($dossier),
+            new \App\Notifications\CorrectionDemandee($dossier, 'À reprendre'),
+            new \App\Notifications\DocumentRecu($dossier),
+        ] as $notification) {
+            $mail = $notification->toMail($destinataire);
+            $html = (string) $mail->render();
+            $this->assertStringContainsString('class="container"', $html, get_class($notification) . ' n\'utilise pas le gabarit commun');
+            $this->assertStringContainsString('FawazBTP', $html);
+            $this->assertDoesNotMatchRegularExpression('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}]/u', $mail->subject . $html);
+        }
+
+        // Aucun emoji dans le code des mails.
+        foreach (array_merge(glob(app_path('Mail/*.php')), glob(app_path('Notifications/*.php')), glob(resource_path('views/emails/*.php')), glob(resource_path('views/emails/*/*.php'))) as $fichier) {
+            $this->assertDoesNotMatchRegularExpression('/[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{2B50}]/u', file_get_contents($fichier), basename($fichier));
+        }
+    }
+
+    public function test_la_page_des_notifications_et_l_etat_vide(): void
+    {
+        $chef = $this->chefs['bureau_controle'];
+        $this->actingAs($chef)->get(route('notifications.index'))->assertOk()->assertSee('Aucune notification pour l\'instant', false)->assertSee('nt-vide');
+
+        \App\Notifications\Alerte::envoyer($chef, 'Nouveau document à viser : Plan', '/dossiers/1');
+        $this->actingAs($chef)->get(route('notifications.index'))->assertOk()->assertSee('nt-carte')->assertSee('Nouveau document à viser')->assertSee('Plan');
+    }
+
+    public function test_on_partage_a_tout_moment_et_les_documents_partages_ont_leur_propre_titre(): void
+    {
+        $chef = $this->chefs['entreprise'];
+        $collabBe = $this->collabs['bureau_etudes'];
+
+        // Document encore « Soumis » (ni validé ni archivé) : le partage informatif est déjà possible.
+        [$dossier] = $this->dossierEnCircuit(['bureau_controle']);
+        $this->assertNotContains($dossier->statut, ['valide', 'archive']);
+
+        $this->actingAs($chef)->get(route('entreprise.documents'))->assertOk()->assertSee('btn-partager')->assertSee('partagerModal');
+        $this->actingAs($chef)->post(route('dossiers.retransmettre', $dossier), ['users' => [$collabBe->id]])->assertSessionHasNoErrors();
+
+        // Chez le destinataire : son propre espace distingue « Partagés avec moi » de ses documents.
+        $this->actingAs($collabBe)->get(route('dossiers.index'))->assertOk()
+            ->assertSee('Partagés avec moi')->assertSee($dossier->identifiant)->assertSee('btn-partager');
+
+        // Chez l'émetteur : pas de titre « Partagés avec moi » pour ses propres documents.
+        $this->actingAs($chef)->get(route('entreprise.dossiers'))->assertOk()->assertDontSee('Partagés avec moi')->assertSee($dossier->identifiant);
+
+        // Il archive (après validation de tous les visas) : il le retrouve, et celui à qui il l'avait partagé aussi, sous leurs titres.
+        $dossier->update(['statut' => 'valide']);
+        $dossier->circuitVisas()->update(['statut' => 'valide']);
+        $this->actingAs($chef)->post(route('dossiers.archiver', $dossier))->assertRedirect(route('archives.index'));
+
+        $this->actingAs($chef)->get(route('archives.index'))->assertOk()->assertSee($dossier->identifiant)->assertDontSee('Partagés avec moi');
+        $this->actingAs($collabBe)->get(route('archives.index'))->assertOk()->assertSee('Partagés avec moi')->assertSee($dossier->identifiant)->assertSee('fa-eye');
+    }
+
+    public function test_le_lien_dossiers_est_le_meme_partout_et_sans_bouton_d_import(): void
+    {
+        foreach ([
+            ['bureau_controle', 'controleur.dashboard', 'cheflot.dashboard', 'bureau_controle.envoi.dossiers'],
+            ['bureau_etudes', 'bureau_etudes.collaborateur.dashboard', 'bureau_etudes.chef.dashboard', 'bureau_etudes.envoi.dossiers'],
+            ['maitre_oeuvre', 'maitre_oeuvre.collaborateur.dashboard', 'maitre_oeuvre.chef.dashboard', 'maitre_oeuvre.envoi.dossiers'],
+        ] as [$type, $dashCollab, $dashChef, $routeDossiers]) {
+            foreach ([$this->collabs[$type], $this->chefs[$type]] as $user) {
+                $dash = $user->peutViser() ? $dashChef : $dashCollab;
+                $this->actingAs($user)->get(route($dash))->assertOk()
+                    ->assertSee(route($routeDossiers))->assertDontSee('Tous les dossiers');
+                $this->actingAs($user)->get(route($routeDossiers))->assertOk()->assertSee('Mes dossiers');
+            }
+        }
+
+        $this->actingAs($this->collabs['bureau_controle'])->get(route('dossiers.index'))->assertOk()->assertDontSee('Importer un document');
+    }
+
+    public function test_les_formulaires_utilisateur_de_l_admin_remplissent_la_largeur_et_regroupent_affectation_et_statut(): void
+    {
+        $admin = $this->utilisateur(User::ROLE_ADMIN, 'responsable_organisme', $this->structures['entreprise']);
+        $cible = $this->chefs['maitre_oeuvre'];
+
+        $this->actingAs($admin)->get(route('admin.users.create'))->assertOk()->assertSee('form-row fluide', false);
+        $edition = $this->actingAs($admin)->get(route('admin.users.edit', $cible))->assertOk()->assertSee('form-row fluide', false);
+
+        // « Affectation » et « Statut du compte » sont deux blocs côte à côte dans un même conteneur à deux colonnes.
+        $edition->assertSeeInOrder(['class="duo"', 'Affectation', 'name="lot_id"', 'Statut du compte', 'name="statut"'], false);
     }
 }

@@ -98,10 +98,11 @@ class EntrepriseController extends Controller
     public function documents()
     {
         $user = Auth::user();
-        $isChef = $user->categorie_role === 'responsable_organisme';
+        $isChef = $user->peutViser();
 
+        // Un document archivé quitte « Mes documents » : il est dans « Archives ».
         $documents = DocumentVersion::whereHas('dossier', function($query) use ($user) {
-            $query->where('cree_par', $user->id);
+            $query->where('cree_par', $user->id)->where('statut', '!=', 'archive');
         })->with(['dossier', 'dossier.documentType', 'dossier.circuitVisas', 'circuitVisas'])
         ->orderBy('created_at', 'desc')
         ->paginate(200);
@@ -130,7 +131,9 @@ class EntrepriseController extends Controller
     public function dossiers()
     {
         $user = Auth::user();
-        $dossiers = Dossier::where('structure_emettrice_id', $user->structure_id)
+        // Les documents de sa structure, et ceux qu'on lui a transmis (qu'il peut à son tour transmettre).
+        $dossiers = Dossier::where('statut', '!=', 'archive')
+            ->where(fn ($q) => $q->where('structure_emettrice_id', $user->structure_id)->orWhere(fn ($t) => $t->transmisA($user)))
             ->with(['documentType', 'versions', 'circuitVisas'])
             ->orderBy('created_at', 'desc')
             ->paginate(200);
@@ -138,22 +141,10 @@ class EntrepriseController extends Controller
         return view('entreprise.dossiers', compact('dossiers'));
     }
 
-    /**
-     * Documents archivés visibles par l'entreprise : consultation seule, réservée
-     * au chef. L'archivage lui-même reste l'apanage du Bureau de Contrôle.
-     */
+    /** Ancienne adresse : les archives de tous les espaces sont sur une page commune. */
     public function archives()
     {
-        $user = Auth::user();
-        abort_unless($user->isResponsableOrganisme(), 403, 'Accès réservé au chef d\'entreprise.');
-
-        $dossiers = Dossier::visiblePar($user)
-            ->where('statut', 'archive')
-            ->with(['documentType', 'structureEmettrice', 'lot', 'circuitVisas'])
-            ->latest()
-            ->paginate(200);
-
-        return view('entreprise.archives', compact('dossiers'));
+        return redirect()->route('archives.index');
     }
 
     public function createDossier()
@@ -174,8 +165,7 @@ class EntrepriseController extends Controller
         $user = Auth::user();
         $documentType = DocumentType::findOrFail($request->document_type_id);
 
-        $dossier = Dossier::create([
-            'identifiant' => Dossier::genererIdentifiant($documentType),
+        $dossier = Dossier::creerAvecIdentifiant($documentType, [
             'titre' => $request->titre,
             'description' => $request->description,
             'document_type_id' => $documentType->id,
@@ -200,7 +190,7 @@ class EntrepriseController extends Controller
             'statut' => 'en_attente_checklist',
         ]);
 
-        return redirect()->route('entreprise.dossiers')
+        return redirect()->eroute('entreprise.dossiers')
             ->with('success', 'Dossier créé avec succès.');
     }
 
@@ -272,7 +262,7 @@ class EntrepriseController extends Controller
 
         // Un responsable envoie directement chez les destinataires, en visant chaque document
         // (cachet + signature). Un collaborateur, lui, soumet à son chef, qui visera au transfert.
-        $estChef = $user->isResponsableOrganisme();
+        $estChef = $user->peutViser();
         $visaService = app(\App\Services\VisaService::class);
         $circuitService = app(\App\Services\CircuitVisaService::class);
 
@@ -325,8 +315,7 @@ class EntrepriseController extends Controller
 
                     $documentType = DocumentType::findOrFail($documentTypeId);
 
-                    $dossier = Dossier::create([
-                        'identifiant' => Dossier::genererIdentifiant($documentType),
+                    $dossier = Dossier::creerAvecIdentifiant($documentType, [
                         'titre' => $request->titre[$index] ?? $file->getClientOriginalName(),
                         'description' => $request->description[$index] ?? null,
                         'document_type_id' => $documentTypeId,
@@ -414,7 +403,7 @@ class EntrepriseController extends Controller
                                 } catch (\Exception $e) {
                                     Log::error('Erreur envoi email vers chef entreprise: ' . $e->getMessage());
                                 }
-                                \App\Notifications\Alerte::envoyer($chefEntreprise, $user->full_name . ' a soumis un document à transférer : ' . $dossier->titre, route('entreprise.documents.a-transferer'));
+                                \App\Notifications\Alerte::envoyer($chefEntreprise, $user->full_name . ' a soumis un document à transférer : ' . $dossier->titre, eroute('entreprise.documents.a-transferer'));
                             }
                         }
 
@@ -484,7 +473,7 @@ class EntrepriseController extends Controller
             $message .= " ($nbInformatif informatif(s))";
         }
 
-        return redirect()->route('entreprise.documents')->with('success', $message);
+        return redirect()->eroute('entreprise.documents')->with('success', $message);
     }
 
     public function getChecklist($dossierId)
@@ -585,7 +574,7 @@ class EntrepriseController extends Controller
         ->findOrFail($id);
 
     if ($dossier->statut !== 'a_corriger') {
-        return redirect()->route('entreprise.dossiers.show', $dossier->id)
+        return redirect()->eroute('entreprise.dossiers.show', $dossier->id)
             ->with('error', 'Ce dossier n\'est pas en attente de correction.');
     }
 
@@ -635,7 +624,7 @@ class EntrepriseController extends Controller
         $dossier = Dossier::where('cree_par', $user->id)->findOrFail($id);
 
         if ($dossier->statut !== 'a_corriger') {
-            return redirect()->route('entreprise.dossiers.show', $dossier->id)
+            return redirect()->eroute('entreprise.dossiers.show', $dossier->id)
                 ->with('error', 'Ce dossier n\'est pas en attente de correction.');
         }
 
@@ -696,7 +685,7 @@ class EntrepriseController extends Controller
             ]);
         });
 
-        return redirect()->route('entreprise.dossiers.show', $dossier->id)
+        return redirect()->eroute('entreprise.dossiers.show', $dossier->id)
             ->with('success', 'Correction envoyée avec succès pour nouvelle validation.');
     }
 
@@ -723,7 +712,7 @@ class EntrepriseController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->isResponsableOrganisme()) {
+        if (!$user->peutViser()) {
             abort(403, 'Accès réservé au chef d\'entreprise.');
         }
 
@@ -746,7 +735,7 @@ class EntrepriseController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->isResponsableOrganisme()) {
+        if (!$user->peutViser()) {
             abort(403);
         }
 
@@ -794,6 +783,6 @@ class EntrepriseController extends Controller
             $message .= ' Le visa est enregistré, mais il n\'a pas pu être inscrit sur le fichier (format non pris en charge ou PDF illisible).';
         }
 
-        return redirect()->route('entreprise.documents.a-transferer')->with('success', $message);
+        return redirect()->eroute('entreprise.documents.a-transferer')->with('success', $message);
     }
 }

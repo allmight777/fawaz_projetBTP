@@ -1,8 +1,8 @@
 @extends('emails.layout')
 @section('title', 'Document validé')
-@section('subtitle', 'Le Bureau de Contrôle a validé votre document')
+@section('subtitle', ($controleur->structure?->nom ?? 'Une structure').' a validé votre document')
 @section('body')
-    <p>Votre document a été validé par le Bureau de Contrôle. La version validée porte les visas (cachets et signatures) et le tampon de validation.</p>
+    <p>Votre document a été validé par <strong>{{ $controleur->structure?->nom ?? 'une structure de visa' }}</strong>. La version validée porte les visas (cachets et signatures) et le tampon de validation.</p>
     @include('emails.partials.infos', ['titre' => 'Informations du document', 'lignes' => [
         'Titre' => $dossier->titre,
         'Type' => $dossier->documentType->nom ?? 'Non défini',

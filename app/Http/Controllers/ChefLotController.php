@@ -458,7 +458,9 @@ class ChefLotController extends Controller
     {
         $user = Auth::user();
 
+        // Un document archivé quitte « Documents reçus » : il est dans « Archives ».
         $dossiers = Dossier::transmisA($user)
+            ->where('statut', '!=', 'archive')
             ->with([
                 'documentType',
                 'versions' => function ($q) {
@@ -563,6 +565,7 @@ public function traiterDecision(Request $request, $id)
         $etat = $circuit->appliquerDecision($derniereVersion, $user, $request->decision, $request->commentaires);
 
         if ($etat === 'valide') {
+            // Validé dès le premier visa ; re-tamponné et re-scellé à chaque visa supplémentaire.
             app(\App\Services\DocumentStampingService::class)->tamponner($derniereVersion);
 
             if ($derniereVersion->fichier_valide_hash) {
@@ -580,9 +583,9 @@ public function traiterDecision(Request $request, $id)
     // ============ ENVOI DES EMAILS ============
     if ($etat === 'valide') {
         $this->envoyerEmailsValidation($dossier, $derniereVersion, $user, $decisionModel);
-        $message = 'Document validé avec succès. Les parties prenantes ont été notifiées.';
-    } elseif ($etat === 'partiel') {
-        $message = 'Votre visa est enregistré. Le document sera validé lorsque les autres structures auront visé.';
+        $message = $circuit->visasComplets($derniereVersion)
+            ? 'Document validé : tous les visas sont obtenus. Les parties prenantes ont été notifiées.'
+            : 'Document validé. Votre visa est enregistré ; les autres structures peuvent encore viser.';
     } else {
         $this->envoyerEmailsCorrection($dossier, $derniereVersion, $user, $decisionModel);
         $message = 'Document renvoyé pour correction. Les parties prenantes ont été notifiées.';

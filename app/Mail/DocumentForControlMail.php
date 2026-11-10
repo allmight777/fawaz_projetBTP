@@ -30,7 +30,7 @@ class DocumentForControlMail extends Mailable
     public function envelope(): Envelope
 {
     return new Envelope(
-        subject: '📄 Demande de contrôle - ' . $this->dossier->titre,
+        subject: 'Demande de contrôle - ' . $this->dossier->titre,
     );
 }
 

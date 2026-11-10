@@ -32,7 +32,7 @@ class DocumentNeedsCorrectionMail extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: '⚠️ Correction demandée - ' . $this->dossier->titre,
+            subject: 'Correction demandée - ' . $this->dossier->titre,
         );
     }
 

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Mail\DocumentForControlMail;
+use App\Models\CircuitEvenement;
 use App\Models\CircuitVisa;
 use App\Models\DocumentTransmission;
 use App\Models\DocumentVersion;
@@ -18,8 +19,9 @@ use Illuminate\Support\Facades\Mail;
 /**
  * Circuit de visa : l'émetteur choisit les structures dont il a besoin du visa (BC, BE, MOE).
  * Le document part chez elles en même temps ; chacune vérifie et vise à son niveau, sans
- * attendre les autres. Le document n'est « Validé » que lorsque toutes ont visé ; dès qu'une
- * structure demande une correction, il passe « À corriger ».
+ * attendre les autres. Le document passe « Validé » dès qu'une structure a visé (les autres peuvent
+ * encore viser ensuite) ; dès qu'une structure demande une correction, il passe « À corriger ».
+ * Chaque action est inscrite au journal (CircuitEvenement).
  *
  * Un dossier sans circuit (documents antérieurs) garde l'ancien comportement : le Bureau de
  * Contrôle seul décide.
@@ -68,6 +70,8 @@ class CircuitVisaService
                 ['dossier_id' => $dossier->id, 'statut' => 'en_attente', 'decide_par' => null, 'decide_le' => null, 'commentaire' => null]
             );
 
+            CircuitEvenement::noter($dossier, 'envoi', $emetteur, $type, $version, $commentaire);
+
             $chef = $this->chefDe($type);
             if (!$chef) {
                 Log::warning("Circuit de visa : aucun responsable actif pour la structure $type (dossier {$dossier->id}).");
@@ -92,6 +96,8 @@ class CircuitVisaService
         $dossier->update([
             'statut' => 'en_cours',
             'necessite_transfert_chef' => false,
+            'applicable_le' => null,
+            'applicable_par' => null,
             'structure_cible' => implode(',', array_map([Espaces::class, 'sigle'], $types)),
         ]);
 
@@ -102,6 +108,7 @@ class CircuitVisaService
     public function rouvrir(Dossier $dossier, DocumentVersion $nouvelleVersion, User $emetteur, ?string $commentaire = null): DocumentTransmission
     {
         $types = $this->typesDemandes($dossier, $nouvelleVersion->id);
+        CircuitEvenement::noter($dossier, 'nouvelle_version', $emetteur, null, $nouvelleVersion, $commentaire);
 
         return $this->ouvrir($dossier, $nouvelleVersion, $emetteur, $types ?: ['bureau_controle'], $commentaire, 'diffusion_validation');
     }
@@ -118,6 +125,106 @@ class CircuitVisaService
         }
 
         return CircuitVisa::where('document_version_id', $derniere)->pluck('structure_type')->all();
+    }
+
+    /** Structures qu'on peut encore ajouter au circuit en cours de cette version. */
+    public function structuresAjoutables(Dossier $dossier): array
+    {
+        $version = $dossier->versions()->orderByDesc('numero_version')->first();
+        if (!$version) {
+            return [];
+        }
+
+        $deja = $this->lignes($version)->pluck('structure_type')->all();
+        $emettrice = $dossier->structureEmettrice?->type;
+
+        return array_values(array_diff(Espaces::TYPES_VISA, $deja, [$emettrice]));
+    }
+
+    /**
+     * L'émetteur (ou le chef de sa structure) peut-il ajouter des structures au circuit ? Seulement tant que
+     * le circuit est en cours : mode validation, document ni à corriger ni archivé, et une structure à ajouter.
+     */
+    public function peutPartager(User $user, Dossier $dossier): bool
+    {
+        if ($dossier->mode_traitement !== 'validation' || $dossier->necessite_transfert_chef
+            || in_array($dossier->statut, ['brouillon', 'a_corriger', 'rejete', 'archive'], true)) {
+            return false;
+        }
+
+        $version = $dossier->versions()->orderByDesc('numero_version')->first();
+        if (!$version || !$this->aCircuit($version)) {
+            return false;
+        }
+
+        $estEmetteur = $dossier->cree_par === $user->id
+            || ($user->peutViser() && $user->structure_id !== null && $user->structure_id === $dossier->structure_emettrice_id);
+
+        return $estEmetteur && !empty($this->structuresAjoutables($dossier));
+    }
+
+    /**
+     * Ajoute des structures à un circuit en cours : elles reçoivent le document et visent à leur niveau, sans
+     * toucher au travail déjà fait par les autres. Un document déjà « applicable » ne l'est plus tant que les
+     * nouvelles structures n'ont pas visé.
+     *
+     * @return array<int, string> types réellement ajoutés
+     */
+    public function ajouterStructures(Dossier $dossier, User $par, array $types, ?string $commentaire = null): array
+    {
+        abort_unless($this->peutPartager($par, $dossier), 403, 'Vous ne pouvez pas ajouter de structure à ce circuit.');
+
+        $version = $dossier->versions()->orderByDesc('numero_version')->first();
+        $types = array_values(array_intersect(self::normaliser($types), $this->structuresAjoutables($dossier)));
+        abort_if(empty($types), 422, 'Aucune structure à ajouter.');
+
+        $transmission = DocumentTransmission::create([
+            'dossier_id' => $dossier->id,
+            'document_version_id' => $version->id,
+            'emetteur_id' => $par->id,
+            'mode' => 'validation',
+            'commentaire' => $commentaire,
+            'date_transmission' => now(),
+        ]);
+
+        foreach ($types as $type) {
+            CircuitVisa::create([
+                'dossier_id' => $dossier->id, 'document_version_id' => $version->id,
+                'structure_type' => $type, 'statut' => 'en_attente',
+            ]);
+            CircuitEvenement::noter($dossier, 'structure_ajoutee', $par, $type, $version, $commentaire);
+
+            $chef = $this->chefDe($type);
+            if (!$chef) {
+                Log::warning("Circuit de visa : aucun responsable actif pour la structure $type (dossier {$dossier->id}).");
+                continue;
+            }
+
+            TransmissionDestinataire::create([
+                'document_transmission_id' => $transmission->id,
+                'user_id' => $chef->id,
+                'structure_id' => $chef->structure_id,
+            ]);
+
+            try {
+                Mail::to($chef->email)->send(new DocumentForControlMail($version, $dossier, $par));
+            } catch (\Throwable $e) {
+                Log::error('Erreur envoi email ajout au circuit (' . $type . ') : ' . $e->getMessage());
+            }
+            Alerte::envoyer($chef, 'Nouveau document à viser : ' . $dossier->titre, route('dossiers.show', $dossier));
+        }
+
+        if ($dossier->applicable_le) {
+            CircuitEvenement::noter($dossier, 'applicable_retire', $par, null, $version, 'Nouvelle structure ajoutée au circuit');
+        }
+
+        $dossier->update([
+            'applicable_le' => null,
+            'applicable_par' => null,
+            'structure_cible' => implode(',', array_map([Espaces::class, 'sigle'], $this->lignes($version)->pluck('structure_type')->all())),
+        ]);
+
+        return $types;
     }
 
     public function lignes(DocumentVersion $version): Collection
@@ -137,9 +244,17 @@ class CircuitVisaService
         return $type ? CircuitVisa::where('document_version_id', $version->id)->where('structure_type', $type)->first() : null;
     }
 
+    /**
+     * Version qui n'attend plus de visa. Dans un circuit, une version « Validée » par une première structure
+     * reste ouverte aux visas des autres : c'est la ligne de chaque structure qui dit si elle a encore à agir.
+     */
     private function figee(DocumentVersion $version): bool
     {
-        return in_array($version->statut, ['valide', 'a_corriger', 'rejete'], true) || $version->dossier->isArchived();
+        if ($version->dossier->isArchived() || in_array($version->statut, ['a_corriger', 'rejete'], true)) {
+            return true;
+        }
+
+        return $version->statut === 'valide' && !$this->aCircuit($version);
     }
 
     /** Le responsable peut-il affecter des collaborateurs à cette version ? */
@@ -197,14 +312,16 @@ class CircuitVisaService
     }
 
     /**
-     * Enregistre la décision d'une structure et recalcule l'état global du document.
+     * Enregistre la décision d'une structure et recalcule l'état du document.
      *
-     * @return string 'valide' (tous les visas obtenus), 'a_corriger' (au moins une correction demandée)
-     *                ou 'partiel' (cette structure a visé, d'autres doivent encore le faire)
+     * @return string 'valide' (au moins un visa, aucune correction demandée) ou 'a_corriger'
+     *                (au moins une correction demandée). Utiliser visasComplets() pour savoir si toutes
+     *                les structures ont visé.
      */
     public function appliquerDecision(DocumentVersion $version, User $user, string $decision, ?string $commentaire = null): string
     {
         $ligne = $this->ligneDe($version, $user);
+        $dossier = $version->dossier;
 
         if ($ligne) {
             $ligne->update([
@@ -215,33 +332,85 @@ class CircuitVisaService
             ]);
         }
 
+        CircuitEvenement::noter(
+            $dossier,
+            $decision === 'valide' ? 'visa' : 'correction_demandee',
+            $user,
+            $user->structureVisa(),
+            $version,
+            $commentaire
+        );
+
         $lignes = $this->lignes($version);
-        $global = match (true) {
-            $decision !== 'valide' => 'a_corriger',
-            $lignes->isEmpty() || $lignes->every(fn (CircuitVisa $l) => $l->statut === 'valide') => 'valide',
-            default => 'partiel',
-        };
+        $global = ($decision !== 'valide' || $lignes->contains(fn (CircuitVisa $l) => $l->statut === 'a_corriger')) ? 'a_corriger' : 'valide';
 
-        if ($global === 'partiel') {
-            // Les visas déjà obtenus apparaissent tout de suite sur le document servi aux autres structures.
-            app(DocumentStampingService::class)->viser($version->fresh());
+        $version->update(['statut' => $global]);
+        $dossier->update(['statut' => $global] + ($global === 'a_corriger' ? ['applicable_le' => null, 'applicable_par' => null] : []));
 
-            if ($version->dossier->creePar) {
-                Alerte::envoyer(
-                    $version->dossier->creePar,
-                    'Visa ' . Espaces::sigle($user->structureVisa() ?? '') . ' obtenu (' . $lignes->where('statut', 'valide')->count() . '/' . $lignes->count() . ') : ' . $version->dossier->titre,
-                    route('dossiers.show', $version->dossier)
-                );
-            }
-
-            return 'partiel';
+        if ($global === 'valide' && $dossier->creePar && $lignes->count() > 1) {
+            $obtenus = $lignes->where('statut', 'valide')->count();
+            Alerte::envoyer(
+                $dossier->creePar,
+                'Visa ' . Espaces::sigle($user->structureVisa() ?? '') . ' obtenu (' . $obtenus . '/' . $lignes->count() . ') : ' . $dossier->titre,
+                route('dossiers.show', $dossier)
+            );
         }
 
-        $statut = $global === 'valide' ? 'valide' : 'a_corriger';
-        $version->update(['statut' => $statut]);
-        $version->dossier->update(['statut' => $statut]);
-
         return $global;
+    }
+
+    /** Toutes les structures sollicitées ont-elles visé cette version ? */
+    public function visasComplets(DocumentVersion $version): bool
+    {
+        $lignes = $this->lignes($version);
+
+        return $lignes->isEmpty() || $lignes->every(fn (CircuitVisa $l) => $l->statut === 'valide');
+    }
+
+    /** La structure de l'utilisateur peut-elle revenir sur son visa ? (chef de la structure, visa déjà accordé, version courante) */
+    public function peutModifierDecision(User $user, DocumentVersion $version): bool
+    {
+        if (!$user->estChefVisa() || $version->dossier->isArchived()) {
+            return false;
+        }
+
+        $derniere = $version->dossier->versions()->max('numero_version');
+        if ((int) $derniere !== (int) $version->numero_version) {
+            return false;
+        }
+
+        return $this->ligneDe($version, $user)?->statut === 'valide';
+    }
+
+    /**
+     * Le chef d'une structure revient sur un visa déjà accordé : le document repasse « À corriger » chez
+     * l'émetteur, qui pourra renvoyer une nouvelle version. Tout est inscrit au journal.
+     */
+    public function modifierDecision(DocumentVersion $version, User $user, string $motif): \App\Models\DocumentDecision
+    {
+        abort_unless($this->peutModifierDecision($user, $version), 403, 'Vous ne pouvez pas modifier cette décision.');
+
+        $dossier = $version->dossier;
+        $ligne = $this->ligneDe($version, $user);
+        $ligne->update([
+            'statut' => 'a_corriger',
+            'decide_par' => $user->id,
+            'decide_le' => now(),
+            'commentaire' => $motif,
+        ]);
+
+        CircuitEvenement::noter($dossier, 'decision_modifiee', $user, $user->structureVisa(), $version, $motif);
+
+        $version->update(['statut' => 'a_corriger']);
+        $dossier->update(['statut' => 'a_corriger', 'applicable_le' => null, 'applicable_par' => null]);
+
+        return \App\Models\DocumentDecision::create([
+            'document_version_id' => $version->id,
+            'decision' => 'a_corriger',
+            'validateur_id' => $user->id,
+            'date_decision' => now(),
+            'commentaires' => 'Décision modifiée après validation : ' . $motif,
+        ]);
     }
 
     /**

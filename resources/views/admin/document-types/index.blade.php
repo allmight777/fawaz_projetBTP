@@ -101,7 +101,7 @@
                                     <a href="{{ route('admin.document-types.checklist', $type->id) }}" class="btn-sm btn-checklist" title="Gérer les critères"><i class="fas fa-list-check"></i></a>
                                     <a href="{{ route('admin.document-types.edit', $type->id) }}" class="btn-sm btn-edit" title="Modifier"><i class="fas fa-edit"></i></a>
                                     <form action="{{ route('admin.document-types.destroy', $type->id) }}" method="POST" style="display:inline-block;"
-                                          onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce type ?')">
+                                          data-confirm="Ce type de document sera supprimé." data-confirm-title="Supprimer ce type ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn-sm btn-delete" title="Supprimer"><i class="fas fa-trash"></i></button>

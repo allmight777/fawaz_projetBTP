@@ -1,4 +1,4 @@
-@extends('layouts.entreprise')
+@extends(auth()->user()->spaceLayout())
 
 @section('title', 'Mes dossiers')
 
@@ -20,12 +20,32 @@
 <div class="page-header">
     <h2><i class="fas fa-folder-open"></i> Mes dossiers</h2>
     <div>
-        <a href="{{ route('entreprise.documents') }}" class="btn-outline-blue">
+        <a href="{{ eroute('entreprise.documents') }}" class="btn-outline-blue">
             <i class="fas fa-file-alt"></i> Voir les documents
         </a>
     </div>
 </div>
 
+@php
+    $moi = auth()->user();
+    $partagesIds = \App\Models\Dossier::idsPartagesAvec($moi);
+    $groupes = $dossiers->getCollection()->groupBy(fn ($d) => in_array($d->id, $partagesIds, true) && !$d->appartientA($moi) ? 'partages' : 'miens');
+    $avecTitres = ($groupes['partages'] ?? collect())->isNotEmpty();
+    $sections = [
+        ['miens', 'Mes dossiers', 'folder-open', $groupes['miens'] ?? collect()],
+        ['partages', 'Partagés avec moi', 'share-nodes', $groupes['partages'] ?? collect()],
+    ];
+@endphp
+
+@foreach($sections as [$cle, $titre, $icone, $liste])
+    @continue($cle === 'partages' && !$avecTitres)
+    @if($avecTitres)
+        <div class="sect-titre {{ $cle === 'partages' ? 'partage' : '' }}">
+            <span class="st-ico"><i class="fas fa-{{ $icone }}"></i></span>
+            <h2>{{ $titre }}</h2>
+            <span class="st-nb">{{ $liste->count() }}</span>
+        </div>
+    @endif
 <div class="table-container">
     <div class="table-wrapper">
         <table data-filtres="statut,type,date">
@@ -42,7 +62,7 @@
                 </tr>
             </thead>
             <tbody>
-                @forelse($dossiers as $dossier)
+                @forelse($liste as $dossier)
                 <tr>
                     <td>
                         <span class="identifiant-tag">{{ $dossier->identifiant ?? '#'.$dossier->id }}</span>
@@ -65,9 +85,8 @@
                         {{ $dossier->created_at->format('d/m/Y H:i') }}
                     </td>
                     <td>
-                        <a href="{{ route('entreprise.dossiers.show', $dossier->id) }}" class="btn-link" title="Voir le dossier">
-                            <i class="fas fa-eye"></i> Voir
-                        </a>
+                        <a href="{{ eroute('entreprise.dossiers.show', $dossier->id) }}" class="btn-link" title="Voir le dossier" aria-label="Voir le dossier"><i class="fas fa-eye"></i></a>
+                        @include('partials.partager-bouton')
                     </td>
                 </tr>
                 @empty
@@ -83,8 +102,12 @@
             </tbody>
         </table>
     </div>
-    <div style="margin-top:16px;">
-        {{ $dossiers->links() }}
-    </div>
 </div>
+@endforeach
+
+<div style="margin-top:16px;">
+    {{ $dossiers->links() }}
+</div>
+
+@include('partials.partage-informatif')
 @endsection

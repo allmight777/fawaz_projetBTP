@@ -93,7 +93,7 @@
                         <a href="{{ route('admin.users.edit', $user) }}" style="color:#8b1e3f; margin-right:10px; text-decoration:none;" title="Modifier">
                             <i class="fas fa-edit"></i>
                         </a>
-                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="display:inline-block;" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')">
+                        <form method="POST" action="{{ route('admin.users.destroy', $user) }}" style="display:inline-block;" data-confirm="{{ $user->full_name ?? $user->nom }} sera supprimé." data-confirm-title="Supprimer cet utilisateur ?" data-confirm-ok="Supprimer" data-confirm-tone="danger">
                             @csrf
                             @method('DELETE')
                             <button type="submit" style="background:none; border:none; color:#dc3545; cursor:pointer;" title="Supprimer">
